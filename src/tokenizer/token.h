@@ -13,6 +13,9 @@ public:
 		Invalid,
 
 		Semicolon,
+		Comma,
+
+		Star,
 
 		Integer,
 
@@ -30,6 +33,7 @@ public:
 		NewLine,
 
 		kw_int,
+		kw_char,
 		kw_return,
 
 		WhiteSpace,

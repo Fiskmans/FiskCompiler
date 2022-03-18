@@ -12,6 +12,8 @@ void TokenMatcher::MatchTokens(std::vector<Token>& aWrite, const std::string& aL
 	std::string_view lineLeft = aLine; 
 	size_t aColumn = 0;
 
+	bool trimWhitespace = CompilerContext::HasFlag("p:no_whitespace");
+
 	while (!lineLeft.empty())
 	{
 		size_t toConsume = 0;
@@ -33,8 +35,13 @@ void TokenMatcher::MatchTokens(std::vector<Token>& aWrite, const std::string& aL
 			break;
 		}
 
-		aWrite.push_back(Token(resultingType, SplitView(lineLeft, toConsume)));
+		std::string_view rawToken = SplitView(lineLeft, toConsume);
 		aColumn += toConsume;
+
+		if (trimWhitespace && resultingType == Token::Type::WhiteSpace)
+			continue;
+
+		aWrite.push_back(Token(resultingType, rawToken));
 	}
 
 	aWrite.push_back(Token(Token::Type::NewLine, "\n"));
@@ -211,6 +218,10 @@ void TokenMatcher::LoadPatterns()
 		return;
 
 	ourPatterns.insert(std::make_pair("semicolon",				new CharPattern(';')));
+	ourPatterns.insert(std::make_pair("comma",					new CharPattern(',')));
+	
+	ourPatterns.insert(std::make_pair("star",					new CharPattern('*')));
+
 	ourPatterns.insert(std::make_pair("l-paren",				new CharPattern('(')));
 	ourPatterns.insert(std::make_pair("r-paren",				new CharPattern(')')));
 	ourPatterns.insert(std::make_pair("l-brace",				new CharPattern('{')));
@@ -276,6 +287,9 @@ void TokenMatcher::LoadPatterns()
 	ourRootPatterns.emplace_back(new RootPattern("integer-literal",		Token::Type::Integer));
 
 	ourRootPatterns.emplace_back(new RootPattern("semicolon",			Token::Type::Semicolon));
+	ourRootPatterns.emplace_back(new RootPattern("comma",				Token::Type::Comma));
+
+	ourRootPatterns.emplace_back(new RootPattern("star",				Token::Type::Star));
 
 	ourRootPatterns.emplace_back(new RootPattern("l-paren",				Token::Type::L_Paren));
 	ourRootPatterns.emplace_back(new RootPattern("r-paren",				Token::Type::R_Paren));
@@ -283,6 +297,7 @@ void TokenMatcher::LoadPatterns()
 	ourRootPatterns.emplace_back(new RootPattern("r-brace",				Token::Type::R_Brace));
 
 	ourRootPatterns.emplace_back(new RootPattern("int",					Token::Type::kw_int));
+	ourRootPatterns.emplace_back(new RootPattern("char",				Token::Type::kw_char));
 	ourRootPatterns.emplace_back(new RootPattern("return",				Token::Type::kw_return));
 
 	ourRootPatterns.emplace_back(new RootPattern("identifier",			Token::Type::Identifier));
