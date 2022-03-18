@@ -6,18 +6,10 @@
 
 #include "tokenizer/tokenMatcher.h"
 
-class TokenizerContext
-{
-public:
-	void EmitWarning(const std::string& aMessage, size_t aLine, size_t aColumn, size_t aSize = 1);
-	void EmitError(const std::string& aMessage, size_t aLine, size_t aColumn, size_t aSize = 1);
-
-	std::stack<std::string> myFileStack;
-private:
-};
+#include "common/CompilerContext.h"
 
 // 5.2 Phases of translation Step 1
-std::vector<std::string> UniversalEscape(const std::vector<std::string>& aLines, TokenizerContext& aContext)
+std::vector<std::string> UniversalEscape(const std::vector<std::string>& aLines)
 {
 	// 5.3 Character sets
 	const size_t basicCharSetSize = 96;
@@ -26,7 +18,7 @@ std::vector<std::string> UniversalEscape(const std::vector<std::string>& aLines,
 		'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','y',
 		'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Y',
 		'0','1','2','3','4','5','6','7','8','9',
-		'_','{','}','[',']','#','(',')','<','>','%',':',';','.','?','*','+','-','/','^','&','|','~','!','=',',','\\','"','\''
+		'_','{','}','[',']','#','(',')','<','>','%',':',';','.','?','*','+','-','/','^','&','|','~','!','=',',','\\','"','\'', ' '
 	};
 
 	const char* beginSearch = basicCharSet;
@@ -52,9 +44,9 @@ std::vector<std::string> UniversalEscape(const std::vector<std::string>& aLines,
 			for (const char c : line)
 			{
 				columnCount++;
-				if (std::find(beginSearch, endSearch, c) != endSearch)
+				if (std::find(beginSearch, endSearch, c) == endSearch)
 				{
-					aContext.EmitWarning("unkown character [" + std::to_string(static_cast<int>(c)) + "] replacing with [?]", lineCount, columnCount);
+					CompilerContext::EmitWarning("unkown character [" + std::to_string(static_cast<int>(c)) + "] replacing with [?]", lineCount, columnCount);
 					replacement.push_back('?');
 				}
 				else
@@ -73,7 +65,7 @@ std::vector<std::string> UniversalEscape(const std::vector<std::string>& aLines,
 	return aLines;
 }
 
-std::vector<std::string> Reduce(const std::vector<std::string>& aLines, TokenizerContext& aContext)
+std::vector<std::string> Reduce(const std::vector<std::string>& aLines)
 {
 	std::vector<std::string> out;
 	for (size_t i = 0; i < aLines.size(); i++)
@@ -83,7 +75,7 @@ std::vector<std::string> Reduce(const std::vector<std::string>& aLines, Tokenize
 		{
 			if (i + 1 == aLines.size())
 			{
-				aContext.EmitError("[\\] concatination at end of line", i, line.length() - 1);
+				CompilerContext::EmitError("[\\] concatination at end of line", i, line.length() - 1);
 			}
 
 			std::string concatenated = line.substr(0, line.length() - 1) + aLines[i + 1];
@@ -98,33 +90,37 @@ std::vector<std::string> Reduce(const std::vector<std::string>& aLines, Tokenize
 	return out;
 }
 
-std::vector<Token> Tokenize(const std::vector<std::string>& aLines, TokenizerContext& aContext)
+std::vector<Token> Tokenize(const std::vector<std::string>& aLines)
 {
 	std::vector<Token> out;
 
-	for (const std::string& line : aLines)
-		TokenMatcher::MatchTokens(std::back_inserter(out), line);
+	for (size_t i = 0; i < aLines.size(); i++)
+	{
+		CompilerContext::SetCurrentLine(i);
+		TokenMatcher::MatchTokens(out, aLines[i]);
+	}
 
 	return out;
 }
 
-std::vector<Token> Tokenize(const std::string_view& aFilePath, TokenizerContext& aContext)
+std::vector<Token> Tokenize(const std::string_view& aFilePath)
 {
-	aContext.myFileStack.push(std::string(aFilePath));
+	CompilerContext::PushFile(std::string(aFilePath));
+
 	std::vector<std::string> physicalSource = ReadWholeFile(std::string(aFilePath));
-	std::vector<std::string> escapedPhysicalSource = UniversalEscape(physicalSource, aContext);
-	std::vector<std::string> logicalSource = Reduce(physicalSource, aContext);
-	std::vector<Token> tokens = Tokenize(logicalSource, aContext);
+	CompilerContext::SetPrintContext(physicalSource);
+	
+	std::vector<std::string> escapedPhysicalSource = UniversalEscape(physicalSource);
+	CompilerContext::SetPrintContext(escapedPhysicalSource);
+
+	std::vector<std::string> logicalSource = Reduce(physicalSource);
+	CompilerContext::SetPrintContext(logicalSource);
+
+	std::vector<Token> tokens = Tokenize(logicalSource);
 
 	//#include expand
 
-	aContext.myFileStack.pop();
+	CompilerContext::PopFile();
 
 	return tokens;
-}
-
-std::vector<Token> Tokenize(const std::string_view& aFilePath)
-{
-	TokenizerContext context;
-	return Tokenize(aFilePath, context);
 }

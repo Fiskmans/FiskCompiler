@@ -5,9 +5,13 @@
 
 struct Token
 {
+public:
+
 	enum class Type
 	{
-		SemiColon,
+		Invalid,
+
+		Semicolon,
 
 		L_Paren,
 		R_Paren,
@@ -22,13 +26,23 @@ struct Token
 
 		NewLine,
 
+		kw_int,
+
 		WhiteSpace,
 
-		Text
+		Identifier
 	};
 
-	Type				myType;
-	std::string_view	myRawText;
+	Token(Type aType, std::string_view aRawText)
+		: myType(aType)
+		, myRawText(aRawText)
+	{
+	}
+
+	static std::string TypeToString(Type);
+
+	Type		myType;
+	std::string	myRawText;
 };
 
 #endif

@@ -1,6 +1,7 @@
 
 
 list(APPEND SOURCE_FILES token.h)
+list(APPEND SOURCE_FILES token.cpp)
 list(APPEND SOURCE_FILES tokenizer.h)
 list(APPEND SOURCE_FILES tokenizer.cpp)
 list(APPEND SOURCE_FILES tokenMatcher.h)
