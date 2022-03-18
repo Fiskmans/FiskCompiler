@@ -45,9 +45,16 @@ std::vector<std::string> UniversalEscape(const std::vector<std::string>& aLines)
 			{
 				columnCount++;
 				if (std::find(beginSearch, endSearch, c) == endSearch)
-				{
-					CompilerContext::EmitWarning("unkown character [" + std::to_string(static_cast<int>(c)) + "] replacing with [?]", lineCount, columnCount);
-					replacement.push_back('?');
+				{	
+					if(c == '\t' || c == '\r')
+					{
+						replacement.push_back(' ');
+					}
+					else
+					{
+						CompilerContext::EmitWarning("unkown character [" + std::to_string(static_cast<int>(c)) + "] replacing with [?]", lineCount, columnCount);
+						replacement.push_back('?');
+					}
 				}
 				else
 				{
@@ -62,7 +69,7 @@ std::vector<std::string> UniversalEscape(const std::vector<std::string>& aLines)
 		}
 	}
 
-	return aLines;
+	return out;
 }
 
 std::vector<std::string> Reduce(const std::vector<std::string>& aLines)
@@ -113,7 +120,7 @@ std::vector<Token> Tokenize(const std::string_view& aFilePath)
 	std::vector<std::string> escapedPhysicalSource = UniversalEscape(physicalSource);
 	CompilerContext::SetPrintContext(escapedPhysicalSource);
 
-	std::vector<std::string> logicalSource = Reduce(physicalSource);
+	std::vector<std::string> logicalSource = Reduce(escapedPhysicalSource);
 	CompilerContext::SetPrintContext(logicalSource);
 
 	std::vector<Token> tokens = Tokenize(logicalSource);

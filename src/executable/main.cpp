@@ -21,10 +21,25 @@ int main(int argc, char** argv)
 
 	if(CompilerContext::GetFlag("dump") == "tokens")
 	{
+		std::string line;
+		std::string annotation;
+
+
 		for (Token& tok : tokens)
 		{
-			std::cout << tok.myRawText << "\n" << Token::TypeToString(tok.myType) << "\n\n";
+			while (annotation.length() > line.length()) { line += ' '; }
+			while (line.length() > annotation.length()) { annotation += ' '; }
+			line += tok.myRawText;
+			annotation += "[" + Token::TypeToString(tok.myType) + "]";
+
+			if (tok.myType == Token::Type::NewLine)
+			{
+				std::cout << line << annotation << "\n\n";
+				line = "";
+				annotation = "";
+			}
 		}
+		std::cout << line << "\n" << annotation << "\n\n";
 	}
 
 	return CompilerContext::HasErrors() ? EXIT_FAILURE : EXIT_SUCCESS;

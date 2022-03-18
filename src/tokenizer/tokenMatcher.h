@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_map>
 #include <memory>
+#include <optional>
 
 class TokenMatcher
 {
@@ -18,7 +19,8 @@ public:
 	class Pattern
 	{
 	public:
-		virtual size_t Match(const std::string_view& aView, const PatternCollection& aPatterns) = 0;
+		
+		virtual std::optional<size_t> Match(const std::string_view& aView, const PatternCollection& aPatterns) = 0;
 	};
 
 
@@ -43,8 +45,8 @@ private:
 
 		MatchResult Match(const std::string_view& aView, const PatternCollection& aPatterns)
 		{
-			size_t size = aPatterns.at(myBasePattern)->Match(aView, aPatterns);
-			return { size, myType };
+			std::optional<size_t> res = aPatterns.at(myBasePattern)->Match(aView, aPatterns);
+			return { res ? *res : 0, res ? myType : Token::Type::Invalid };
 		}
 
 		std::string myBasePattern;

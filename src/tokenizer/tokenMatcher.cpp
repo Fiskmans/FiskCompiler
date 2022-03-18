@@ -55,12 +55,12 @@ public:
 	{
 	}
 
-	virtual size_t Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
+	virtual std::optional<size_t> Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
 	{
 		if (aView[0] == myChar)
 			return 1;
 	
-		return 0;
+		return {};
 	}
 private:
 	char myChar;
@@ -75,12 +75,12 @@ public:
 	{
 	}
 
-	virtual size_t Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
+	virtual std::optional<size_t> Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
 	{
 		if (aView.starts_with(myWord))
 			return myWord.length();
 	
-		return 0;
+		return {};
 	}
 private:
 	std::string myWord;
@@ -95,12 +95,12 @@ public:
 	{
 	}
 
-	virtual size_t Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
+	virtual std::optional<size_t> Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
 	{
 		if (myChars.find(aView[0]) != std::string::npos)
 			return 1;
 	
-		return 0;
+		return {};
 	}
 private:
 	std::string myChars;
@@ -114,14 +114,18 @@ public:
 	{
 	}
 	
-	virtual size_t Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
+	virtual std::optional<size_t> Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
 	{
 		size_t longest = 0;
 
 		for (std::string& patternName : myOptions)
-			longest = std::max(longest, aPatterns.at(patternName)->Match(aView, aPatterns));
+		{
+			std::optional<size_t> res = aPatterns.at(patternName)->Match(aView, aPatterns);
+			if (res)
+				longest = std::max(longest, *res);
+		}
 
-		return longest;
+		return longest > 0 ? longest : std::optional<size_t>();
 	}
 
 private:
@@ -136,19 +140,19 @@ public:
 	{
 	}
 	
-	virtual size_t Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
+	virtual std::optional<size_t> Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
 	{
 		size_t total = 0;
 
 		for (std::string& patternName : myList)
 		{
 			const std::string_view next(aView.begin() + total, aView.end());
-			size_t amount = aPatterns.at(patternName)->Match(next, aPatterns);
+			std::optional<size_t> res = aPatterns.at(patternName)->Match(next, aPatterns);
 
-			if (amount == 0)
-				return 0;
+			if (!res)
+				return {};
 
-			total += amount;
+			total += *res;
 		}
 
 		return total;
@@ -166,22 +170,39 @@ public:
 	{
 	}
 	
-	virtual size_t Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
+	virtual std::optional<size_t> Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
 	{
 		size_t total = 0;
 		std::string_view view(aView);
 		while (!view.empty())
 		{
-			size_t amount = aPatterns.at(myBase)->Match(view, aPatterns);
-			if (amount == 0)
+			std::optional<size_t> res = aPatterns.at(myBase)->Match(view, aPatterns);
+			if (!res)
 				break;
-			view = std::string_view(view.begin() + amount, view.end());
-			total += amount;
+			view = std::string_view(view.begin() + *res, view.end());
+			total += *res;
 		}
-		return total;
+		return total > 0 ? total : std::optional<size_t>();
 	}
 private:
 	std::string myBase;
+};
+
+class OptionalPattern : public TokenMatcher::Pattern
+{
+public:
+	OptionalPattern(std::shared_ptr<TokenMatcher::Pattern> aBase)
+		: myBase(aBase)
+	{
+	}
+	
+	virtual std::optional<size_t> Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
+	{
+		std::optional<size_t> res = myBase->Match(aView, aPatterns);
+		return res ? res : 0;
+	}
+private:
+	std::shared_ptr<TokenMatcher::Pattern> myBase;
 };
 
 void TokenMatcher::LoadPatterns()
@@ -189,6 +210,7 @@ void TokenMatcher::LoadPatterns()
 	if(!ourPatterns.empty())
 		return;
 
+	ourPatterns.insert(std::make_pair("semicolon",				new CharPattern(';')));
 	ourPatterns.insert(std::make_pair("l-paren",				new CharPattern('(')));
 	ourPatterns.insert(std::make_pair("r-paren",				new CharPattern(')')));
 	ourPatterns.insert(std::make_pair("l-brace",				new CharPattern('{')));
@@ -208,27 +230,61 @@ void TokenMatcher::LoadPatterns()
 		"this", "thread_local", "throw", "true", "try", "typedef", "typeid",
 		"typename", "union", "unsigned", "using", "virtual", 
 		"void", "volatile", "wchar_t", "while"})
-		ourPatterns.insert(std::make_pair(keyword,				new WordPattern(keyword)));
+		ourPatterns.insert(std::make_pair(keyword,							new WordPattern(keyword)));
 
-	ourPatterns.insert(std::make_pair("identifier",				new ComboPattern({ "nondigit", "identifier:rep" })));
-	ourPatterns.insert(std::make_pair("identifier:rep",			new RepeatPattern( "identifier:tail" )));
-	ourPatterns.insert(std::make_pair("identifier:tail",		new EitherPattern({ "nondigit", "digit" })));
+	ourPatterns.insert(std::make_pair("identifier",							new ComboPattern({ "nondigit", "identifier:rep" })));
+	ourPatterns.insert(std::make_pair("identifier:rep",						new RepeatPattern( "identifier:tail" )));
+	ourPatterns.insert(std::make_pair("identifier:tail",					new EitherPattern({ "nondigit", "digit" })));
 
-	ourPatterns.insert(std::make_pair("whitespace",				new RepeatPattern( "whitechar" )));
+	ourPatterns.insert(std::make_pair("whitespace",							new RepeatPattern( "whitechar" )));
+	ourPatterns.insert(std::make_pair("whitechar",							new AnyOfPattern(" \r\b")));
 
-	ourPatterns.insert(std::make_pair("nondigit",				new AnyOfPattern("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")));
-	ourPatterns.insert(std::make_pair("digit",					new AnyOfPattern("0123456789")));
-	ourPatterns.insert(std::make_pair("whitechar",				new AnyOfPattern(" \t\n\r\b")));
+	ourPatterns.insert(std::make_pair("nondigit",							new AnyOfPattern("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")));
+	ourPatterns.insert(std::make_pair("digit",								new AnyOfPattern("0123456789")));
+	ourPatterns.insert(std::make_pair("nonzero-digit",						new AnyOfPattern("123456789")));
+	
+	ourPatterns.insert(std::make_pair("integer-literal",					new EitherPattern( { "binary-literal", "octal-literal", "decimal-literal", "hexadecimal-literal" } )));
 
+	ourPatterns.insert(std::make_pair("binary-literal",						new ComboPattern( { "binary-literal-prefix", "binary-digit-sequence" } )));
+	ourPatterns.insert(std::make_pair("binary-literal-prefix",				new EitherPattern( { "binary-literal-prefix:lower", "binary-literal-prefix:upper" })));
+	ourPatterns.insert(std::make_pair("binary-literal-prefix:lower",		new WordPattern("0b")));
+	ourPatterns.insert(std::make_pair("binary-literal-prefix:upper",		new WordPattern("0B")));
+	ourPatterns.insert(std::make_pair("binary-digit-sequence",				new RepeatPattern("binary-digit:segment")));
+	ourPatterns.insert(std::make_pair("binary-digit:segment",				new ComboPattern( { "integer-literal:optional-tick", "binary-digit" } )));
+	ourPatterns.insert(std::make_pair("binary-digit",						new AnyOfPattern( "01" )));
+	
+	ourPatterns.insert(std::make_pair("octal-literal",						new ComboPattern( { "octal-literal-prefix", "octal-digit-sequence" } )));
+	ourPatterns.insert(std::make_pair("octal-literal-prefix",				new WordPattern("0")));
+	ourPatterns.insert(std::make_pair("octal-digit-sequence",				new OptionalPattern(std::shared_ptr<Pattern>(new RepeatPattern("octal-digit:segment")))));
+	ourPatterns.insert(std::make_pair("octal-digit:segment",				new ComboPattern( { "integer-literal:optional-tick", "octal-digit" } )));
+	ourPatterns.insert(std::make_pair("octal-digit",						new AnyOfPattern( "01234567" )));
+	
+	ourPatterns.insert(std::make_pair("decimal-literal",					new ComboPattern( { "nonzero-digit", "decimal-digit-sequence" } )));
+	ourPatterns.insert(std::make_pair("decimal-digit-sequence",				new RepeatPattern("decimal-digit:segment")));
+	ourPatterns.insert(std::make_pair("decimal-digit:segment",				new ComboPattern( { "integer-literal:optional-tick", "digit" } )));
+	
+	ourPatterns.insert(std::make_pair("hexadecimal-literal",				new ComboPattern( { "hexadecimal-literal-prefix", "hexadecimal-digit-sequence" } )));
+	ourPatterns.insert(std::make_pair("hexadecimal-literal-prefix",			new EitherPattern( { "hexadecimal-literal-prefix:lower", "hexadecimal-literal-prefix:upper" })));
+	ourPatterns.insert(std::make_pair("hexadecimal-literal-prefix:lower",	new WordPattern("0x")));
+	ourPatterns.insert(std::make_pair("hexadecimal-literal-prefix:upper",	new WordPattern("0X")));
+	ourPatterns.insert(std::make_pair("hexadecimal-digit-sequence",			new RepeatPattern("hexadecimal-digit:segment")));
+	ourPatterns.insert(std::make_pair("hexadecimal-digit:segment",			new ComboPattern( { "integer-literal:optional-tick", "hexadecimal-digit" } )));
+	ourPatterns.insert(std::make_pair("hexadecimal-digit",					new AnyOfPattern( "0123456789abcdefABCDEF" )));
 
+	ourPatterns.insert(std::make_pair("integer-literal:optional-tick",		new OptionalPattern(std::shared_ptr<Pattern>(new CharPattern('\'')))));
+	
+	ourRootPatterns.emplace_back(new RootPattern("integer-literal",		Token::Type::Integer));
 
-	ourRootPatterns.emplace_back(new RootPattern("l-paren",		Token::Type::L_Paren));
-	ourRootPatterns.emplace_back(new RootPattern("r-paren",		Token::Type::R_Paren));
-	ourRootPatterns.emplace_back(new RootPattern("l-brace",		Token::Type::L_Brace));
-	ourRootPatterns.emplace_back(new RootPattern("r-brace",		Token::Type::R_Brace));
+	ourRootPatterns.emplace_back(new RootPattern("semicolon",			Token::Type::Semicolon));
 
-	ourRootPatterns.emplace_back(new RootPattern("int",			Token::Type::kw_int));
+	ourRootPatterns.emplace_back(new RootPattern("l-paren",				Token::Type::L_Paren));
+	ourRootPatterns.emplace_back(new RootPattern("r-paren",				Token::Type::R_Paren));
+	ourRootPatterns.emplace_back(new RootPattern("l-brace",				Token::Type::L_Brace));
+	ourRootPatterns.emplace_back(new RootPattern("r-brace",				Token::Type::R_Brace));
 
-	ourRootPatterns.emplace_back(new RootPattern("identifier",	Token::Type::Identifier));
-	ourRootPatterns.emplace_back(new RootPattern("whitespace",	Token::Type::WhiteSpace));
+	ourRootPatterns.emplace_back(new RootPattern("int",					Token::Type::kw_int));
+	ourRootPatterns.emplace_back(new RootPattern("return",				Token::Type::kw_return));
+
+	ourRootPatterns.emplace_back(new RootPattern("identifier",			Token::Type::Identifier));
+	ourRootPatterns.emplace_back(new RootPattern("whitespace",			Token::Type::WhiteSpace));
 }
