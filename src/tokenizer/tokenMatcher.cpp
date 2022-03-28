@@ -271,7 +271,7 @@ void TokenMatcher::LoadPatterns()
 	ourPatterns.insert(std::make_pair("octal-digit",						new AnyOfPattern( "01234567" )));
 	
 	ourPatterns.insert(std::make_pair("decimal-literal",					new ComboPattern( { "nonzero-digit", "decimal-digit-sequence" } )));
-	ourPatterns.insert(std::make_pair("decimal-digit-sequence",				new RepeatPattern("decimal-digit:segment")));
+	ourPatterns.insert(std::make_pair("decimal-digit-sequence",				new OptionalPattern(std::shared_ptr<Pattern>(new RepeatPattern("decimal-digit:segment")))));
 	ourPatterns.insert(std::make_pair("decimal-digit:segment",				new ComboPattern( { "integer-literal:optional-tick", "digit" } )));
 	
 	ourPatterns.insert(std::make_pair("hexadecimal-literal",				new ComboPattern( { "hexadecimal-literal-prefix", "hexadecimal-digit-sequence" } )));
