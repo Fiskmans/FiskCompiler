@@ -7,11 +7,26 @@
 #include <unordered_map>
 #include <memory>
 #include <optional>
+#include <concepts>
 
 class TokenMatcher
 {
 public:
-	static void MatchTokens(std::vector<Token>& aWrite,const std::string& aLine);
+	struct Context
+	{
+		Context() = default;
+	private:
+		friend TokenMatcher;
+		
+		bool myCurrentTokenIsPotentiallyMultiLine = false;
+
+		Token::Type tokenType = Token::Type::Invalid;
+		std::string tokenBuffer;
+		std::string endSequence;
+	};
+
+
+	static void MatchTokens(std::vector<Token>& aWrite,const std::string& aLine, Context& aContext);
 
 	class Pattern;
 	typedef std::unordered_map<std::string, std::shared_ptr<Pattern>> PatternCollection;
@@ -20,7 +35,7 @@ public:
 	{
 	public:
 		
-		virtual std::optional<size_t> Match(const std::string_view& aView, const PatternCollection& aPatterns) = 0;
+		virtual std::optional<size_t> Match(const std::string_view& aView) = 0;
 	};
 
 
@@ -37,26 +52,48 @@ private:
 			Token::Type mType;
 		};
 
-		RootPattern(std::string aBasePattern, Token::Type aType)
+		RootPattern(std::shared_ptr<Pattern> aBasePattern, Token::Type aType)
 			: myBasePattern(aBasePattern)
 			, myType(aType)
 		{
 		}
 
-		MatchResult Match(const std::string_view& aView, const PatternCollection& aPatterns)
+		MatchResult Match(const std::string_view& aView)
 		{
-			std::optional<size_t> res = aPatterns.at(myBasePattern)->Match(aView, aPatterns);
+			std::optional<size_t> res = myBasePattern->Match(aView);
 			return { res ? *res : 0, res ? myType : Token::Type::Invalid };
 		}
 
-		std::string myBasePattern;
+		std::shared_ptr<Pattern> myBasePattern;
 		Token::Type myType;
 	};
 
+
+	class PatternBuilder
+	{
+	public:
+		PatternBuilder(Token::Type aType, std::vector<std::shared_ptr<RootPattern>>& aRootPatternCollection);
+
+		~PatternBuilder();
+
+		PatternBuilder& operator-(std::shared_ptr<Pattern> aPattern);
+		PatternBuilder& operator and(std::shared_ptr<Pattern> aPattern);
+	
+	private:
+		std::vector<std::shared_ptr<Pattern>> myPatterns;
+
+		Token::Type myType;
+		std::vector<std::shared_ptr<RootPattern>>& myRootPatternCollecton;
+	};
+
+
 	static void LoadPatterns();
+	static PatternBuilder BuildPattern(Token::Type aType)
+	{
+		return PatternBuilder(aType, ourRootPatterns);
+	};
 
 	static std::vector<std::shared_ptr<RootPattern>> ourRootPatterns;
-	static std::unordered_map<std::string, std::shared_ptr<Pattern>> ourPatterns;
 };
 
 #endif // !TOKENIZER_TOKENMATCHER_H

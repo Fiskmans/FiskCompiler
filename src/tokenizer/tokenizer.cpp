@@ -15,12 +15,14 @@ std::vector<std::string> UniversalEscape(const std::vector<std::string>& aLines)
 	const size_t basicCharSetSize = 96;
 	const char basicCharSet[basicCharSetSize] = 
 	{
-		'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','y',
-		'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Y',
+		'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','y', 'z',
+		'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Y', 'Z',
 		'0','1','2','3','4','5','6','7','8','9',
-		'_','{','}','[',']','#','(',')','<','>','%',':',';','.','?','*','+','-','/','^','&','|','~','!','=',',','\\','"','\'', ' '
+		'_','{','}','[',']','#','(',')','<','>','%',':',';','.','?','*','+','-','/','^','&','|','~','!','=',',','\\','"','\'', ' ', '\t', '\r'
 	};
-
+	/*
+	Hello
+	*/
 	const char* beginSearch = basicCharSet;
 	const char* endSearch = beginSearch + basicCharSetSize;
 
@@ -46,15 +48,8 @@ std::vector<std::string> UniversalEscape(const std::vector<std::string>& aLines)
 				columnCount++;
 				if (std::find(beginSearch, endSearch, c) == endSearch)
 				{	
-					if(c == '\t' || c == '\r')
-					{
-						replacement.push_back(' ');
-					}
-					else
-					{
-						CompilerContext::EmitWarning("unkown character [" + std::to_string(static_cast<int>(c)) + "] replacing with [?]", lineCount, columnCount);
-						replacement.push_back('?');
-					}
+					CompilerContext::EmitWarning("unkown character [" + std::to_string(static_cast<int>(c)) + "] replacing with [?]", lineCount, columnCount);
+					replacement.push_back('?');
 				}
 				else
 				{
@@ -101,10 +96,11 @@ std::vector<Token> Tokenize(const std::vector<std::string>& aLines)
 {
 	std::vector<Token> out;
 
+	TokenMatcher::Context context;
 	for (size_t i = 0; i < aLines.size(); i++)
 	{
 		CompilerContext::SetCurrentLine(i);
-		TokenMatcher::MatchTokens(out, aLines[i]);
+		TokenMatcher::MatchTokens(out, aLines[i], context);
 	}
 
 	return out;

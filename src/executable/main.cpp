@@ -29,12 +29,12 @@ int main(int argc, char** argv)
 		{
 			while (annotation.length() > line.length()) { line += ' '; }
 			while (line.length() > annotation.length()) { annotation += ' '; }
-			line += tok.myRawText;
+			line += Escape(tok.myRawText);
 			annotation += "[" + Token::TypeToString(tok.myType) + "]";
 
-			if (tok.myType == Token::Type::NewLine)
+			if (tok.myType == Token::Type::NewLine || line.length() > 80)
 			{
-				std::cout << line << annotation << "\n\n";
+				std::cout << line << "\n" << annotation << "\n\n";
 				line = "";
 				annotation = "";
 			}

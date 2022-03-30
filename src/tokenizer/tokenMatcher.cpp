@@ -3,11 +3,356 @@
 #include "common/CompilerContext.h"
 
 std::vector<std::shared_ptr<TokenMatcher::RootPattern>> TokenMatcher::ourRootPatterns;
-std::unordered_map<std::string, std::shared_ptr<TokenMatcher::Pattern>> TokenMatcher::ourPatterns;
 
-void TokenMatcher::MatchTokens(std::vector<Token>& aWrite, const std::string& aLine)
+namespace patterns
 {
+	
+	class CharPattern : public TokenMatcher::Pattern
+	{
+	public:
+		CharPattern(char aChar)
+			: myChar(aChar)
+		{
+		}
+
+		virtual std::optional<size_t> Match(const std::string_view& aView) override
+		{
+			if (aView[0] == myChar)
+				return 1;
+	
+			return {};
+		}
+	private:
+		char myChar;
+	};
+
+	class WordPattern : public TokenMatcher::Pattern
+	{
+	
+	public:
+		WordPattern(const std::string_view& aWord)
+			: myWord(aWord)
+		{
+		}
+
+		virtual std::optional<size_t> Match(const std::string_view& aView) override
+		{
+			if (aView.starts_with(myWord))
+				return myWord.length();
+	
+			return {};
+		}
+	private:
+		std::string myWord;
+	};
+
+	class CaseInsensativeWordPattern : public TokenMatcher::Pattern
+	{
+	public:
+		CaseInsensativeWordPattern(const std::string_view& aWord)
+			: myWord(aWord)
+		{
+		}
+
+		virtual std::optional<size_t> Match(const std::string_view& aView) override
+		{
+			if (aView.length() < myWord.length())
+				return {};
+
+			for (size_t i = 0; i < myWord.length(); i++)
+				if(!CaseInsensativeMatch(aView.at(i), myWord.at(i)))
+					return {};
+	
+			return myWord.length();
+		}
+
+		bool CaseInsensativeMatch(char aLHS, char aRHS)
+		{
+			return std::tolower(aLHS) == std::tolower(aRHS);
+		}
+
+	private:
+		std::string myWord;
+	};
+
+	class AnyOfPattern : public TokenMatcher::Pattern
+	{
+	
+	public:
+		AnyOfPattern(const std::string_view& aChars)
+			: myChars(aChars)
+		{
+		}
+
+		virtual std::optional<size_t> Match(const std::string_view& aView) override
+		{
+			if (myChars.find(aView[0]) != std::string::npos)
+				return 1;
+	
+			return {};
+		}
+	private:
+		std::string myChars;
+	};
+
+	class NotOfPattern : public TokenMatcher::Pattern
+	{
+	
+	public:
+		NotOfPattern(const std::string_view& aChars)
+			: myChars(aChars)
+		{
+		}
+
+		virtual std::optional<size_t> Match(const std::string_view& aView) override
+		{
+			if (myChars.find(aView[0]) == std::string::npos)
+				return 1;
+	
+			return {};
+		}
+	private:
+		std::string myChars;
+	};
+
+	class EitherPattern : public TokenMatcher::Pattern
+	{
+	public:
+		EitherPattern(std::shared_ptr<TokenMatcher::Pattern> aOne, std::shared_ptr<TokenMatcher::Pattern> aTwo)
+		{
+			if(EitherPattern* one = dynamic_cast<EitherPattern*>(aOne.get()))
+			{
+				for (std::shared_ptr<TokenMatcher::Pattern>& option : one->myOptions)
+					myOptions.push_back(option);
+			}
+			else
+			{
+				myOptions.push_back(aOne);
+			}
+			if(EitherPattern* two = dynamic_cast<EitherPattern*>(aTwo.get()))
+			{
+				for (std::shared_ptr<TokenMatcher::Pattern>& option : two->myOptions)
+					myOptions.push_back(option);
+			}
+			else
+			{
+				myOptions.push_back(aTwo);
+			}
+		}
+
+		EitherPattern(const std::initializer_list<std::shared_ptr<TokenMatcher::Pattern>>& aList)
+			: myOptions(aList)
+		{
+		}
+	
+		virtual std::optional<size_t> Match(const std::string_view& aView) override
+		{
+			size_t longest = 0;
+
+			for (std::shared_ptr<TokenMatcher::Pattern>& patternName : myOptions)
+			{
+				std::optional<size_t> res = patternName->Match(aView);
+				if (res)
+					longest = std::max(longest, *res);
+			}
+
+			return longest > 0 ? longest : std::optional<size_t>();
+		}
+
+	private:
+		std::vector<std::shared_ptr<TokenMatcher::Pattern>> myOptions;
+	};
+
+	class ComboPattern : public TokenMatcher::Pattern
+	{
+	public:
+		ComboPattern(const std::initializer_list<std::shared_ptr<TokenMatcher::Pattern>>& aList)
+			: myList(aList)
+		{
+		}
+
+		ComboPattern(const std::vector<std::shared_ptr<TokenMatcher::Pattern>>& aList)
+			: myList(aList)
+		{
+		}
+	
+		virtual std::optional<size_t> Match(const std::string_view& aView) override
+		{
+			size_t total = 0;
+
+			for (std::shared_ptr<TokenMatcher::Pattern>& pattern : myList)
+			{
+				const std::string_view next(aView.begin() + total, aView.end());
+				std::optional<size_t> res = pattern->Match(next);
+
+				if (!res)
+					return {};
+
+				total += *res;
+			}
+
+			return total;
+		}
+
+	private:
+		std::vector<std::shared_ptr<TokenMatcher::Pattern>> myList;
+	};
+
+	class RepeatPattern : public TokenMatcher::Pattern
+	{
+	public:
+		RepeatPattern(std::shared_ptr<TokenMatcher::Pattern> aBase)
+			: myBase(aBase)
+		{
+		}
+	
+		virtual std::optional<size_t> Match(const std::string_view& aView) override
+		{
+			size_t total = 0;
+			std::string_view view(aView);
+			while (!view.empty())
+			{
+				std::optional<size_t> res = myBase->Match(view);
+				if (!res)
+					break;
+				view = std::string_view(view.begin() + *res, view.end());
+				total += *res;
+			}
+			return total > 0 ? total : std::optional<size_t>();
+		}
+	private:
+		std::shared_ptr<TokenMatcher::Pattern> myBase;
+	};
+	
+	class RepeatPatternRange : public TokenMatcher::Pattern
+	{
+	public:
+		RepeatPatternRange(std::shared_ptr<TokenMatcher::Pattern> aBase, size_t aMinimun, size_t aMaximum)
+			: myBase(aBase)
+			, myMinimum(aMinimun)
+			, myMaximum(aMaximum)
+		{
+		}
+	
+		virtual std::optional<size_t> Match(const std::string_view& aView) override
+		{
+			size_t total = 0;
+			size_t totalMatches = 0;
+			std::string_view view(aView);
+			for (size_t i = 0; i < myMaximum; i++)
+			{
+				if(view.empty())
+					break;
+			
+				std::optional<size_t> res = myBase->Match(view);
+				if (!res)
+					break;
+				
+				totalMatches++;
+
+				view = std::string_view(view.begin() + *res, view.end());
+				total += *res;
+			}
+			return totalMatches > myMinimum ? total : std::optional<size_t>();
+		}
+	private:
+		std::shared_ptr<TokenMatcher::Pattern> myBase;
+		size_t myMinimum;
+		size_t myMaximum;
+	};
+
+	class OptionalPattern : public TokenMatcher::Pattern
+	{
+	public:
+		OptionalPattern(std::shared_ptr<TokenMatcher::Pattern> aBase)
+			: myBase(aBase)
+		{
+		}
+	
+		virtual std::optional<size_t> Match(const std::string_view& aView) override
+		{
+			std::optional<size_t> res = myBase->Match(aView);
+			return res ? res : 0;
+		}
+	private:
+		std::shared_ptr<TokenMatcher::Pattern> myBase;
+	};
+}
+
+namespace pattern_literals
+{
+	using namespace patterns;
+	std::shared_ptr<TokenMatcher::Pattern> operator""_c(const char aValue)
+	{
+		return std::shared_ptr<TokenMatcher::Pattern>(new CharPattern(aValue));
+	}
+	
+	std::shared_ptr<TokenMatcher::Pattern> operator""_exact(const char* aValue, size_t aSize)
+	{
+		return std::shared_ptr<TokenMatcher::Pattern>(new WordPattern(std::string_view(aValue, aSize)));
+	}
+	
+	std::shared_ptr<TokenMatcher::Pattern> operator""_nocase(const char* aValue, size_t aSize)
+	{
+		return std::shared_ptr<TokenMatcher::Pattern>(new CaseInsensativeWordPattern(std::string_view(aValue, aSize)));
+	}
+
+	std::shared_ptr<TokenMatcher::Pattern> operator""_any(const char* aValue, size_t aSize)
+	{
+		return std::shared_ptr<TokenMatcher::Pattern>(new AnyOfPattern(std::string_view(aValue, aSize)));
+	}
+
+	std::shared_ptr<TokenMatcher::Pattern> operator""_notof(const char* aValue, size_t aSize)
+	{
+		return std::shared_ptr<TokenMatcher::Pattern>(new NotOfPattern(std::string_view(aValue, aSize)));
+	}
+}
+
+namespace pattern_combinations
+{
+	using namespace patterns;
+	std::shared_ptr<TokenMatcher::Pattern> operator or(std::shared_ptr<TokenMatcher::Pattern> aLHS, std::shared_ptr<TokenMatcher::Pattern> aRHS)
+	{
+		return std::shared_ptr<TokenMatcher::Pattern>(new EitherPattern(aLHS, aRHS));
+	}
+
+	std::shared_ptr<TokenMatcher::Pattern> operator and(std::shared_ptr<TokenMatcher::Pattern> aLHS, std::shared_ptr<TokenMatcher::Pattern> aRHS)
+	{
+		return std::shared_ptr<TokenMatcher::Pattern>(new ComboPattern({ aLHS, aRHS }));
+	}
+}
+
+namespace pattern_helpers
+{
+	using namespace patterns;
+	std::shared_ptr<TokenMatcher::Pattern> Repeat(std::shared_ptr<TokenMatcher::Pattern> aPattern)
+	{
+		return std::shared_ptr<TokenMatcher::Pattern>(new RepeatPattern(aPattern));
+	}
+
+	std::shared_ptr<TokenMatcher::Pattern> RepeatCapped(std::shared_ptr<TokenMatcher::Pattern> aPattern, size_t aMaximum)
+	{
+		return std::shared_ptr<TokenMatcher::Pattern>(new RepeatPatternRange(aPattern, 0, aMaximum));
+	}
+
+	std::shared_ptr<TokenMatcher::Pattern> Optionally(std::shared_ptr<TokenMatcher::Pattern> aPattern)
+	{
+		return std::shared_ptr<TokenMatcher::Pattern>(new OptionalPattern(aPattern));
+	}
+}
+
+void TokenMatcher::MatchTokens(std::vector<Token>& aWrite, const std::string& aLine, Context& aContext)
+{
+	using namespace pattern_literals;
+	using namespace pattern_helpers;
+	using namespace pattern_combinations;
+
 	LoadPatterns();
+
+	//Tokens with special rules
+	std::shared_ptr<Pattern> rawString			= "R\""_exact and Optionally(RepeatCapped(" ()\\\t\f\v"_notof, 16)) and '('_c; // Matches:		R"<delimiter>(
+	std::shared_ptr<Pattern> multiLineComment	= "/*"_exact;
+	std::shared_ptr<Pattern> comment			= "//"_exact;
 
 	std::string_view lineLeft = aLine; 
 	size_t aColumn = 0;
@@ -19,9 +364,60 @@ void TokenMatcher::MatchTokens(std::vector<Token>& aWrite, const std::string& aL
 		size_t toConsume = 0;
 		Token::Type resultingType = Token::Type::Invalid;
 
+
+		if (aContext.myCurrentTokenIsPotentiallyMultiLine)
+		{
+			size_t pos = lineLeft.find(aContext.endSequence);
+			if (pos == std::string_view::npos)
+			{
+				aContext.tokenBuffer += lineLeft;
+				aContext.tokenBuffer += "\n";
+				return;
+			}
+
+			aContext.tokenBuffer += SplitView(lineLeft, pos + aContext.endSequence.length());
+
+			aWrite.push_back(Token(aContext.tokenType, aContext.tokenBuffer));
+
+			aContext.myCurrentTokenIsPotentiallyMultiLine = false;
+			continue;
+		}
+
+
+		{
+			std::optional<size_t> rawStringResult = rawString->Match(lineLeft);
+			if (rawStringResult)
+			{
+				aContext.myCurrentTokenIsPotentiallyMultiLine = true;
+				aContext.tokenType = Token::Type::String_literal;
+				aContext.tokenBuffer += SplitView(lineLeft, *rawStringResult);
+				aContext.endSequence = ")" + aContext.tokenBuffer.substr(2, *rawStringResult - 3) + "\"";
+				continue;
+			}
+		}
+
+		{
+			std::optional<size_t> multiLineCommentResult = multiLineComment->Match(lineLeft);
+			if (multiLineCommentResult)
+			{
+				aContext.myCurrentTokenIsPotentiallyMultiLine = true;
+				aContext.tokenType = Token::Type::Comment;
+				aContext.tokenBuffer += SplitView(lineLeft, *multiLineCommentResult);
+				aContext.endSequence = "*/";
+				continue;
+			}
+		}
+
+		if (comment->Match(lineLeft))
+		{
+			aWrite.push_back(Token(Token::Type::Comment, lineLeft));
+			break;
+		}
+
+
 		for (auto& pattern : ourRootPatterns)
 		{
-			auto [amount, type] = pattern->Match(lineLeft, ourPatterns);
+			auto [amount, type] = pattern->Match(lineLeft);
 			if(amount > toConsume)
 			{
 				toConsume = amount;
@@ -31,7 +427,7 @@ void TokenMatcher::MatchTokens(std::vector<Token>& aWrite, const std::string& aL
 
 		if (toConsume == 0)
 		{
-			CompilerContext::EmitError("Invalid token", aColumn);
+			CompilerContext::EmitError("Invalid token", aColumn, CompilerContext::GetCurrentLine(), lineLeft.size());
 			break;
 		}
 
@@ -43,8 +439,14 @@ void TokenMatcher::MatchTokens(std::vector<Token>& aWrite, const std::string& aL
 
 		aWrite.push_back(Token(resultingType, rawToken));
 	}
-
-	aWrite.push_back(Token(Token::Type::NewLine, "\n"));
+	if (aContext.myCurrentTokenIsPotentiallyMultiLine)
+	{
+		aContext.tokenBuffer += "\n";
+	}
+	else
+	{
+		aWrite.push_back(Token(Token::Type::NewLine, "\n"));
+	}
 }
 
 std::string_view TokenMatcher::SplitView(std::string_view& aInOutLeft, size_t aAmount)
@@ -54,252 +456,206 @@ std::string_view TokenMatcher::SplitView(std::string_view& aInOutLeft, size_t aA
 	return out;
 }
 
-class CharPattern : public TokenMatcher::Pattern
-{
-public:
-	CharPattern(char aChar)
-		: myChar(aChar)
-	{
-	}
 
-	virtual std::optional<size_t> Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
-	{
-		if (aView[0] == myChar)
-			return 1;
-	
-		return {};
-	}
-private:
-	char myChar;
-};
-
-class WordPattern : public TokenMatcher::Pattern
-{
-	
-public:
-	WordPattern(const std::string_view& aWord)
-		: myWord(aWord)
-	{
-	}
-
-	virtual std::optional<size_t> Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
-	{
-		if (aView.starts_with(myWord))
-			return myWord.length();
-	
-		return {};
-	}
-private:
-	std::string myWord;
-};
-
-class AnyOfPattern : public TokenMatcher::Pattern
-{
-	
-public:
-	AnyOfPattern(const std::string_view& aChars)
-		: myChars(aChars)
-	{
-	}
-
-	virtual std::optional<size_t> Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
-	{
-		if (myChars.find(aView[0]) != std::string::npos)
-			return 1;
-	
-		return {};
-	}
-private:
-	std::string myChars;
-};
-
-class EitherPattern : public TokenMatcher::Pattern
-{
-public:
-	EitherPattern(const std::initializer_list<std::string>& aList)
-		: myOptions(aList)
-	{
-	}
-	
-	virtual std::optional<size_t> Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
-	{
-		size_t longest = 0;
-
-		for (std::string& patternName : myOptions)
-		{
-			std::optional<size_t> res = aPatterns.at(patternName)->Match(aView, aPatterns);
-			if (res)
-				longest = std::max(longest, *res);
-		}
-
-		return longest > 0 ? longest : std::optional<size_t>();
-	}
-
-private:
-	std::vector<std::string> myOptions;
-};
-
-class ComboPattern : public TokenMatcher::Pattern
-{
-public:
-	ComboPattern(const std::initializer_list<std::string>& aList)
-		: myList(aList)
-	{
-	}
-	
-	virtual std::optional<size_t> Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
-	{
-		size_t total = 0;
-
-		for (std::string& patternName : myList)
-		{
-			const std::string_view next(aView.begin() + total, aView.end());
-			std::optional<size_t> res = aPatterns.at(patternName)->Match(next, aPatterns);
-
-			if (!res)
-				return {};
-
-			total += *res;
-		}
-
-		return total;
-	}
-
-private:
-	std::vector<std::string> myList;
-};
-
-class RepeatPattern : public TokenMatcher::Pattern
-{
-public:
-	RepeatPattern(const std::string_view& aBase)
-		: myBase(aBase)
-	{
-	}
-	
-	virtual std::optional<size_t> Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
-	{
-		size_t total = 0;
-		std::string_view view(aView);
-		while (!view.empty())
-		{
-			std::optional<size_t> res = aPatterns.at(myBase)->Match(view, aPatterns);
-			if (!res)
-				break;
-			view = std::string_view(view.begin() + *res, view.end());
-			total += *res;
-		}
-		return total > 0 ? total : std::optional<size_t>();
-	}
-private:
-	std::string myBase;
-};
-
-class OptionalPattern : public TokenMatcher::Pattern
-{
-public:
-	OptionalPattern(std::shared_ptr<TokenMatcher::Pattern> aBase)
-		: myBase(aBase)
-	{
-	}
-	
-	virtual std::optional<size_t> Match(const std::string_view& aView, const TokenMatcher::PatternCollection& aPatterns) override
-	{
-		std::optional<size_t> res = myBase->Match(aView, aPatterns);
-		return res ? res : 0;
-	}
-private:
-	std::shared_ptr<TokenMatcher::Pattern> myBase;
-};
 
 void TokenMatcher::LoadPatterns()
 {
-	if(!ourPatterns.empty())
+	if(!ourRootPatterns.empty())
 		return;
 
-	ourPatterns.insert(std::make_pair("semicolon",				new CharPattern(';')));
-	ourPatterns.insert(std::make_pair("comma",					new CharPattern(',')));
+	using namespace pattern_literals;
+	using namespace pattern_combinations;
+	using namespace pattern_helpers;
+
+	std::shared_ptr<TokenMatcher::Pattern> nondigit				= "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"_any;
+	std::shared_ptr<TokenMatcher::Pattern> digit				= "0123456789"_any;
+	std::shared_ptr<TokenMatcher::Pattern> nonzero_digit		= "123456789"_any;
+	std::shared_ptr<TokenMatcher::Pattern> octal_digit			= "01234567"_any;
+	std::shared_ptr<TokenMatcher::Pattern> hexadecimal_digit	= "0123456789ABCDEFabcdef"_any;
+	std::shared_ptr<TokenMatcher::Pattern> escape_sequence		=	('\\'_c			and	"'\"?\\abfnrtv"_any	)													//simple-escape-sequence
+																or	('\\'_c			and	octal_digit and Optionally(octal_digit) and Optionally(octal_digit))	//octal-escape-sequence
+																or	("\\x"_exact	and hexadecimal_digit and Optionally(Repeat(hexadecimal_digit)));			//hexadecimal-escape-sequence;
+															   
+#pragma region keywords
+	BuildPattern(Token::Type::kw_alignas)			- "alignas"_exact;
+	BuildPattern(Token::Type::kw_alignof)			- "alignof"_exact;
+	BuildPattern(Token::Type::kw_asm)				- "asm"_exact;
+	BuildPattern(Token::Type::kw_auto)				- "auto"_exact;
+	BuildPattern(Token::Type::kw_bool)				- "bool"_exact;
+	BuildPattern(Token::Type::kw_break)				- "break"_exact;
+	BuildPattern(Token::Type::kw_case)				- "case"_exact;
+	BuildPattern(Token::Type::kw_catch)				- "catch"_exact;
+	BuildPattern(Token::Type::kw_char)				- "char"_exact;
+	BuildPattern(Token::Type::kw_char8_t)			- "char8_t"_exact;
+	BuildPattern(Token::Type::kw_char16_t)			- "char16_t"_exact;
+	BuildPattern(Token::Type::kw_char32_t)			- "char32_t"_exact;
+	BuildPattern(Token::Type::kw_class)				- "class"_exact;
+	BuildPattern(Token::Type::kw_concept)			- "concept"_exact;
+	BuildPattern(Token::Type::kw_const)				- "const"_exact;
+	BuildPattern(Token::Type::kw_consteval)			- "consteval"_exact;
+	BuildPattern(Token::Type::kw_constexpr)			- "constexpr"_exact;
+	BuildPattern(Token::Type::kw_constinit)			- "constinit"_exact;
+	BuildPattern(Token::Type::kw_const_cast)		- "const_cast"_exact;
+	BuildPattern(Token::Type::kw_continue)			- "continue"_exact;
+	BuildPattern(Token::Type::kw_co_await)			- "co_await"_exact;
+	BuildPattern(Token::Type::kw_co_return)			- "co_return"_exact;
+	BuildPattern(Token::Type::kw_co_yield)			- "co_yield"_exact;
+	BuildPattern(Token::Type::kw_decltype)			- "decltype"_exact;
+	BuildPattern(Token::Type::kw_default)			- "default"_exact;
+	BuildPattern(Token::Type::kw_delete)			- "delete"_exact;
+	BuildPattern(Token::Type::kw_do)				- "do"_exact;
+	BuildPattern(Token::Type::kw_double)			- "double"_exact;
+	BuildPattern(Token::Type::kw_dynamic_cast)		- "dynamic_cast"_exact;
+	BuildPattern(Token::Type::kw_else)				- "else"_exact;
+	BuildPattern(Token::Type::kw_enum)				- "enum"_exact;
+	BuildPattern(Token::Type::kw_explicit)			- "explicit"_exact;
+	BuildPattern(Token::Type::kw_export)			- "export"_exact;
+	BuildPattern(Token::Type::kw_extern)			- "extern"_exact;
+	BuildPattern(Token::Type::kw_false)				- "false"_exact;
+	BuildPattern(Token::Type::kw_float)				- "float"_exact;
+	BuildPattern(Token::Type::kw_for)				- "for"_exact;
+	BuildPattern(Token::Type::kw_friend)			- "friend"_exact;
+	BuildPattern(Token::Type::kw_goto)				- "goto"_exact;
+	BuildPattern(Token::Type::kw_if)				- "if"_exact;
+	BuildPattern(Token::Type::kw_inline)			- "inline"_exact;
+	BuildPattern(Token::Type::kw_int)				- "int"_exact;
+	BuildPattern(Token::Type::kw_long)				- "long"_exact;
+	BuildPattern(Token::Type::kw_mutable)			- "mutable"_exact;
+	BuildPattern(Token::Type::kw_namespace)			- "namespace"_exact;
+	BuildPattern(Token::Type::kw_new)				- "new"_exact;
+	BuildPattern(Token::Type::kw_noexcept)			- "noexcept"_exact;
+	BuildPattern(Token::Type::kw_nullptr)			- "nullptr"_exact;
+	BuildPattern(Token::Type::kw_operator)			- "operator"_exact;
+	BuildPattern(Token::Type::kw_private)			- "private"_exact;
+	BuildPattern(Token::Type::kw_protected)			- "protected"_exact;
+	BuildPattern(Token::Type::kw_public)			- "public"_exact;
+	BuildPattern(Token::Type::kw_register)			- "register"_exact;
+	BuildPattern(Token::Type::kw_reinterpret_cast)	- "reinterpret_cast"_exact;
+	BuildPattern(Token::Type::kw_requires)			- "requires"_exact;
+	BuildPattern(Token::Type::kw_return)			- "return"_exact;
+	BuildPattern(Token::Type::kw_short)				- "short"_exact;
+	BuildPattern(Token::Type::kw_signed)			- "signed"_exact;
+	BuildPattern(Token::Type::kw_sizeof)			- "sizeof"_exact;
+	BuildPattern(Token::Type::kw_static)			- "static"_exact;
+	BuildPattern(Token::Type::kw_static_assert)		- "static_assert"_exact;
+	BuildPattern(Token::Type::kw_static_cast)		- "static_cast"_exact;
+	BuildPattern(Token::Type::kw_struct)			- "struct"_exact;
+	BuildPattern(Token::Type::kw_switch)			- "switch"_exact;
+	BuildPattern(Token::Type::kw_template)			- "template"_exact;
+	BuildPattern(Token::Type::kw_this)				- "this"_exact;
+	BuildPattern(Token::Type::kw_thread_local)		- "thread_local"_exact;
+	BuildPattern(Token::Type::kw_throw)				- "throw"_exact;
+	BuildPattern(Token::Type::kw_true)				- "true"_exact;
+	BuildPattern(Token::Type::kw_try)				- "try"_exact;
+	BuildPattern(Token::Type::kw_typedef)			- "typedef"_exact;
+	BuildPattern(Token::Type::kw_typeid)			- "typeid"_exact;
+	BuildPattern(Token::Type::kw_typename)			- "typename"_exact;
+	BuildPattern(Token::Type::kw_union)				- "union"_exact;
+	BuildPattern(Token::Type::kw_unsigned)			- "unsigned"_exact;
+	BuildPattern(Token::Type::kw_using)				- "using"_exact;
+	BuildPattern(Token::Type::kw_virtual)			- "virtual"_exact;
+	BuildPattern(Token::Type::kw_void)				- "void"_exact;
+	BuildPattern(Token::Type::kw_volatile)			- "volatile"_exact;
+	BuildPattern(Token::Type::kw_wchar_t)			- "wchar_t"_exact;
+	BuildPattern(Token::Type::kw_while)				- "while"_exact;
+#pragma endregion
 	
-	ourPatterns.insert(std::make_pair("star",					new CharPattern('*')));
+	BuildPattern(Token::Type::Hash)				- '#'_c;
 
-	ourPatterns.insert(std::make_pair("l-paren",				new CharPattern('(')));
-	ourPatterns.insert(std::make_pair("r-paren",				new CharPattern(')')));
-	ourPatterns.insert(std::make_pair("l-brace",				new CharPattern('{')));
-	ourPatterns.insert(std::make_pair("r-brace",				new CharPattern('}')));
+	BuildPattern(Token::Type::Semicolon)		- ';'_c;
+	BuildPattern(Token::Type::Comma)			- ','_c;
+	BuildPattern(Token::Type::Colon)			- ':'_c;
+	BuildPattern(Token::Type::Colon_colon)		- "::"_exact;
 
-	for (const char* keyword : {
-		"alignas", "alignof", "asm", "auto", "bool", "break", "case", "catch", 
-		"char", "char8_t", "char16_t", "char32_t", "class", "concept", "const", 
-		"consteval","constexpr", "constinit", "const_cast", "continue", "co_await", 
-		"co_return", "co_yield", "decltype", "default", "delete", "do", 
-		"double", "dynamic_cast", "else", "enum", "explicit",
-		"export", "extern", "false", "float", "for", "friend", "goto", "if",
-		"inline", "int", "long", "mutable", "namespace", "new", "noexcept",
-		"nullptr", "operator", "private", "protected", "public", "register",
-		"reinterpret_cast", "requires", "return", "short", "signed", "sizeof",
-		"static", "static_assert", "static_cast", "struct", "switch", "template",
-		"this", "thread_local", "throw", "true", "try", "typedef", "typeid",
-		"typename", "union", "unsigned", "using", "virtual", 
-		"void", "volatile", "wchar_t", "while"})
-		ourPatterns.insert(std::make_pair(keyword,							new WordPattern(keyword)));
+#pragma region operators
+	BuildPattern(Token::Type::Star)				- '*'_c;
+	BuildPattern(Token::Type::Dot)				- '.'_c;
+	BuildPattern(Token::Type::And)				- '&'_c;
+	BuildPattern(Token::Type::Equals)			- '='_c;
+	BuildPattern(Token::Type::NotEquals)		- "!="_exact;
+	BuildPattern(Token::Type::Plus)				- '+'_c;
+	BuildPattern(Token::Type::PlusPlus)			- "++"_exact;
+	BuildPattern(Token::Type::Minus)			- '-'_c;
+	BuildPattern(Token::Type::MinusMinus)		- "--"_exact;
 
-	ourPatterns.insert(std::make_pair("identifier",							new ComboPattern({ "nondigit", "identifier:rep" })));
-	ourPatterns.insert(std::make_pair("identifier:rep",						new RepeatPattern( "identifier:tail" )));
-	ourPatterns.insert(std::make_pair("identifier:tail",					new EitherPattern({ "nondigit", "digit" })));
+	BuildPattern(Token::Type::LessLess)			- "<<"_exact;
+	BuildPattern(Token::Type::GreaterGreater)	- ">>"_exact;
 
-	ourPatterns.insert(std::make_pair("whitespace",							new RepeatPattern( "whitechar" )));
-	ourPatterns.insert(std::make_pair("whitechar",							new AnyOfPattern(" \r\b")));
+	BuildPattern(Token::Type::Less)				- '<'_c;
+	BuildPattern(Token::Type::Greater)			- '>'_c;
+#pragma endregion
 
-	ourPatterns.insert(std::make_pair("nondigit",							new AnyOfPattern("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")));
-	ourPatterns.insert(std::make_pair("digit",								new AnyOfPattern("0123456789")));
-	ourPatterns.insert(std::make_pair("nonzero-digit",						new AnyOfPattern("123456789")));
-	
-	ourPatterns.insert(std::make_pair("integer-literal",					new EitherPattern( { "binary-literal", "octal-literal", "decimal-literal", "hexadecimal-literal" } )));
+	BuildPattern(Token::Type::L_Brace)			- '{'_c;
+	BuildPattern(Token::Type::R_Brace)			- '}'_c;
+	BuildPattern(Token::Type::L_Paren)			- '('_c;
+	BuildPattern(Token::Type::R_Paren)			- ')'_c;
+	BuildPattern(Token::Type::L_Bracket)		- '['_c;
+	BuildPattern(Token::Type::R_Bracket)		- ']'_c;
 
-	ourPatterns.insert(std::make_pair("binary-literal",						new ComboPattern( { "binary-literal-prefix", "binary-digit-sequence" } )));
-	ourPatterns.insert(std::make_pair("binary-literal-prefix",				new EitherPattern( { "binary-literal-prefix:lower", "binary-literal-prefix:upper" })));
-	ourPatterns.insert(std::make_pair("binary-literal-prefix:lower",		new WordPattern("0b")));
-	ourPatterns.insert(std::make_pair("binary-literal-prefix:upper",		new WordPattern("0B")));
-	ourPatterns.insert(std::make_pair("binary-digit-sequence",				new RepeatPattern("binary-digit:segment")));
-	ourPatterns.insert(std::make_pair("binary-digit:segment",				new ComboPattern( { "integer-literal:optional-tick", "binary-digit" } )));
-	ourPatterns.insert(std::make_pair("binary-digit",						new AnyOfPattern( "01" )));
-	
-	ourPatterns.insert(std::make_pair("octal-literal",						new ComboPattern( { "octal-literal-prefix", "octal-digit-sequence" } )));
-	ourPatterns.insert(std::make_pair("octal-literal-prefix",				new WordPattern("0")));
-	ourPatterns.insert(std::make_pair("octal-digit-sequence",				new OptionalPattern(std::shared_ptr<Pattern>(new RepeatPattern("octal-digit:segment")))));
-	ourPatterns.insert(std::make_pair("octal-digit:segment",				new ComboPattern( { "integer-literal:optional-tick", "octal-digit" } )));
-	ourPatterns.insert(std::make_pair("octal-digit",						new AnyOfPattern( "01234567" )));
-	
-	ourPatterns.insert(std::make_pair("decimal-literal",					new ComboPattern( { "nonzero-digit", "decimal-digit-sequence" } )));
-	ourPatterns.insert(std::make_pair("decimal-digit-sequence",				new OptionalPattern(std::shared_ptr<Pattern>(new RepeatPattern("decimal-digit:segment")))));
-	ourPatterns.insert(std::make_pair("decimal-digit:segment",				new ComboPattern( { "integer-literal:optional-tick", "digit" } )));
-	
-	ourPatterns.insert(std::make_pair("hexadecimal-literal",				new ComboPattern( { "hexadecimal-literal-prefix", "hexadecimal-digit-sequence" } )));
-	ourPatterns.insert(std::make_pair("hexadecimal-literal-prefix",			new EitherPattern( { "hexadecimal-literal-prefix:lower", "hexadecimal-literal-prefix:upper" })));
-	ourPatterns.insert(std::make_pair("hexadecimal-literal-prefix:lower",	new WordPattern("0x")));
-	ourPatterns.insert(std::make_pair("hexadecimal-literal-prefix:upper",	new WordPattern("0X")));
-	ourPatterns.insert(std::make_pair("hexadecimal-digit-sequence",			new RepeatPattern("hexadecimal-digit:segment")));
-	ourPatterns.insert(std::make_pair("hexadecimal-digit:segment",			new ComboPattern( { "integer-literal:optional-tick", "hexadecimal-digit" } )));
-	ourPatterns.insert(std::make_pair("hexadecimal-digit",					new AnyOfPattern( "0123456789abcdefABCDEF" )));
+	BuildPattern(Token::Type::Identifier)		- nondigit
+												and Optionally(Repeat(digit or nondigit));
 
-	ourPatterns.insert(std::make_pair("integer-literal:optional-tick",		new OptionalPattern(std::shared_ptr<Pattern>(new CharPattern('\'')))));
-	
-	ourRootPatterns.emplace_back(new RootPattern("integer-literal",		Token::Type::Integer));
+	BuildPattern(Token::Type::WhiteSpace)		- Repeat(" \t\r\b"_any);
 
-	ourRootPatterns.emplace_back(new RootPattern("semicolon",			Token::Type::Semicolon));
-	ourRootPatterns.emplace_back(new RootPattern("comma",				Token::Type::Comma));
+	BuildPattern(Token::Type::Integer)			-	(	("0x"_nocase	and Optionally(Repeat(Optionally('\''_c) and hexadecimal_digit)))
+													or	('0'_c			and Optionally(Repeat(Optionally('\''_c) and octal_digit)))
+													or	("0b"_nocase	and Optionally(Repeat(Optionally('\''_c) and "01"_any)))
+													or	(nonzero_digit	and Optionally(Repeat(Optionally('\''_c) and "0123456789"_any))))
+												and Optionally(
+														("u"_nocase		and Optionally("l"_nocase or "ll"_nocase))
+													or	("l"_nocase		and Optionally("u"_nocase))
+													or	("ll"_nocase	and Optionally("u"_nocase)));
 
-	ourRootPatterns.emplace_back(new RootPattern("star",				Token::Type::Star));
+	BuildPattern(Token::Type::String_literal)	- Optionally(
+														"u8"_exact 
+													or	'u'_c 
+													or	'U'_c 
+													or	'L'_c)
+												and	'"'_c
+												and Optionally(Repeat(
+														"\\\"\n"_notof
+													or	escape_sequence))
+												and '"'_c;
 
-	ourRootPatterns.emplace_back(new RootPattern("l-paren",				Token::Type::L_Paren));
-	ourRootPatterns.emplace_back(new RootPattern("r-paren",				Token::Type::R_Paren));
-	ourRootPatterns.emplace_back(new RootPattern("l-brace",				Token::Type::L_Brace));
-	ourRootPatterns.emplace_back(new RootPattern("r-brace",				Token::Type::R_Brace));
+	BuildPattern(Token::Type::Char_literal)		- Optionally(
+														"u8"_exact
+													or	'u'_c
+													or	'U'_c
+													or	'L'_c)
+												and '\''_c
+												and Repeat(
+														"\\\'\n"_notof
+													or	escape_sequence)
+												and '\''_c;
+}
 
-	ourRootPatterns.emplace_back(new RootPattern("int",					Token::Type::kw_int));
-	ourRootPatterns.emplace_back(new RootPattern("char",				Token::Type::kw_char));
-	ourRootPatterns.emplace_back(new RootPattern("return",				Token::Type::kw_return));
+TokenMatcher::PatternBuilder::PatternBuilder(Token::Type aType, std::vector<std::shared_ptr<RootPattern>>& aRootPatternCollection)
+	: myType(aType)
+	, myRootPatternCollecton(aRootPatternCollection)
+{
 
-	ourRootPatterns.emplace_back(new RootPattern("identifier",			Token::Type::Identifier));
-	ourRootPatterns.emplace_back(new RootPattern("whitespace",			Token::Type::WhiteSpace));
+}
+
+TokenMatcher::PatternBuilder::~PatternBuilder()
+{
+	if (myPatterns.size() == 1)
+	{
+		myRootPatternCollecton.push_back(std::make_shared<RootPattern>(myPatterns[0], myType));
+	}
+	else
+	{
+		myRootPatternCollecton.push_back(std::make_shared<RootPattern>(std::shared_ptr<Pattern>(new patterns::ComboPattern(myPatterns)), myType));
+	}
+}
+
+TokenMatcher::PatternBuilder& TokenMatcher::PatternBuilder::operator-(std::shared_ptr<Pattern> aPattern)
+{
+	myPatterns.push_back(aPattern);
+	return *this;
+}
+
+TokenMatcher::PatternBuilder& TokenMatcher::PatternBuilder::operator and(std::shared_ptr<Pattern> aPattern)
+{
+	myPatterns.push_back(aPattern);
+	return *this;
 }

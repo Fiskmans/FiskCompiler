@@ -7,6 +7,12 @@
 #include <string_view>
 #include <unordered_map>
 
+namespace {
+	thread_local size_t dummy;
+}
+
+std::string Escape(std::string aString, size_t& aOutEscapeCount = dummy);
+
 class CompilerContext
 {
 public:
@@ -15,6 +21,7 @@ public:
 
 	static void SetPrintContext(const std::vector<std::string>& aPrintContext);
 	static void SetCurrentLine(size_t aLine);
+	static size_t GetCurrentLine();
 
 	static void PushFile(const std::string_view& aFile);
 	static void PopFile();
