@@ -9,40 +9,9 @@ std::string Token::TypeToString(Type aType)
 		case Token::Type::Invalid:				return "Invalid";				break;
 		case Token::Type::Comment:				return "Comment";				break;
 
-		case Token::Type::Hash:					return "Hash";					break;
-
-		case Token::Type::Semicolon:			return "Semicolon";				break;
-		case Token::Type::Dot:					return "Dot";					break;
-		case Token::Type::Comma:				return "Comma";					break;
-		case Token::Type::Colon:				return "Colon";					break;
-		case Token::Type::Colon_colon:			return "Colon_colon";			break;
-		
-
 		case Token::Type::Integer:				return "Integer";				break;
 		case Token::Type::String_literal:		return "String_literal";		break;
 		case Token::Type::Char_literal:			return "Char_literal";			break;
-
-		case Token::Type::L_Paren:				return "L_Paren";				break;
-		case Token::Type::R_Paren:				return "R_Paren";				break;
-		case Token::Type::L_Brace:				return "L_Brace";				break;
-		case Token::Type::R_Brace:				return "R_Brace";				break;
-		case Token::Type::L_Bracket:			return "L_Bracket";				break;
-		case Token::Type::R_Bracket:			return "R_Bracket";				break;
-
-		case Token::Type::Less:					return "Less";					break;
-		case Token::Type::LessLess:				return "LessLess";				break;
-		case Token::Type::Greater:				return "Greater";				break;
-		case Token::Type::GreaterGreater:		return "GreaterGreater";		break;
-		case Token::Type::Plus:					return "Plus";					break;
-		case Token::Type::PlusPlus:				return "PlusPlus";				break;
-		case Token::Type::Minus:				return "Minus";					break;
-		case Token::Type::MinusMinus:			return "MinusMinus";			break;
-		case Token::Type::Star:					return "Star";					break;
-		case Token::Type::And:					return "And";					break;
-		case Token::Type::Equals:				return "Equals";				break;
-		case Token::Type::NotEquals:			return "NotEquals";				break;
-
-		case Token::Type::NewLine:				return "NewLine";				break;
 
 		case Token::Type::kw_alignas:			return "kw_alignas";			break;
 		case Token::Type::kw_alignof:			return "kw_alignof";			break;
@@ -126,7 +95,63 @@ std::string Token::TypeToString(Type aType)
 		case Token::Type::kw_wchar_t:			return "kw_wchar_t";			break;
 		case Token::Type::kw_while:				return "kw_while";				break;
 
-		case Token::Type::WhiteSpace:			return "Whitespace";			break;
+		case Token::Type::L_Brace:				return "L_Brace";				break;
+		case Token::Type::R_Brace:				return "R_Brace";				break;
+		case Token::Type::L_Bracket:			return "L_Bracket";				break;
+		case Token::Type::R_Bracket:			return "R_Bracket";				break;
+		case Token::Type::Hash:					return "Hash";					break;
+		case Token::Type::HashHash:				return "HashHash";				break;
+		case Token::Type::L_Paren:				return "L_Paren";				break;
+		case Token::Type::R_Paren:				return "R_Paren";				break;
+		case Token::Type::Semicolon:			return "Semicolon";				break;
+		case Token::Type::Colon:				return "Colon";					break;
+		case Token::Type::Ellipsis:				return "Ellipsis";				break;
+		case Token::Type::Question:				return "Question";				break;
+		case Token::Type::Colon_colon:			return "Colon_colon";			break;
+		case Token::Type::Dot:					return "Dot";					break;
+		case Token::Type::DotStar:				return "DotStar";				break;
+		case Token::Type::Arrow:				return "Arrow";					break;
+		case Token::Type::ArrowStar:			return "ArrowStar";				break;
+		case Token::Type::Comma:				return "Comma";					break;
+
+		case Token::Type::Complement:			return "Complement";			break;
+		case Token::Type::Not:					return "Not";					break;
+		case Token::Type::Plus:					return "Plus";					break;
+		case Token::Type::Minus:				return "Minus";					break;
+		case Token::Type::Star:					return "Star";					break;
+		case Token::Type::Div:					return "Div";					break;
+		case Token::Type::Mod:					return "Mod";					break;
+		case Token::Type::Xor:					return "Xor";					break;
+		case Token::Type::BitAnd:				return "BitAnd";				break;
+		case Token::Type::BitOr:				return "BitOr";					break;
+		case Token::Type::Equal:				return "Equal";					break;
+		case Token::Type::PlusEqual:			return "PlusEqual";				break;
+		case Token::Type::MinusEqual:			return "MinusEqual";			break;
+		case Token::Type::StarEqual:			return "StarEqual";				break;
+		case Token::Type::DivEqual:				return "DivEqual";				break;
+		case Token::Type::ModEqual:				return "ModEqual";				break;
+		case Token::Type::XorEqual:				return "XorEqual";				break;
+		case Token::Type::BitAndEqual:			return "BitAndEqual";			break;
+		case Token::Type::BitOrEqual:			return "BitOrEqual";			break;
+		case Token::Type::EqualEqual:			return "EqualEqual";			break;
+		case Token::Type::NotEquals:			return "NotEquals";				break;
+		case Token::Type::Less:					return "Less";					break;
+		case Token::Type::Greater:				return "Greater";				break;
+		case Token::Type::LessEqual:			return "LessEqual";				break;
+		case Token::Type::GreaterEqual:			return "GreaterEqual";			break;
+		case Token::Type::LessEqualGreater:		return "LessEqualGreater";		break;
+		case Token::Type::And:					return "And";					break;
+		case Token::Type::Or:					return "Or";					break;
+		case Token::Type::LessLess:				return "LessLess";				break;
+		case Token::Type::GreaterGreater:		return "GreaterGreater";		break;
+		case Token::Type::LessLessEqual:		return "LessLessEqual";			break;
+		case Token::Type::GreaterGreaterEqual:	return "GreaterGreaterEqual";	break;
+		case Token::Type::PlusPlus:				return "PlusPlus";				break;
+		case Token::Type::MinusMinus:			return "MinusMinus";			break;
+
+		case Token::Type::WhiteSpace:			return "WhiteSpace";			break;
+		case Token::Type::NewLine:				return "NewLine";				break;
+
 		case Token::Type::Identifier:			return "Identifier";			break;
 	}
 

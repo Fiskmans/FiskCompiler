@@ -477,156 +477,207 @@ void TokenMatcher::LoadPatterns()
 																or	("\\x"_exact	and hexadecimal_digit and Optionally(Repeat(hexadecimal_digit)));			//hexadecimal-escape-sequence;
 															   
 #pragma region keywords
-	BuildPattern(Token::Type::kw_alignas)			- "alignas"_exact;
-	BuildPattern(Token::Type::kw_alignof)			- "alignof"_exact;
-	BuildPattern(Token::Type::kw_asm)				- "asm"_exact;
-	BuildPattern(Token::Type::kw_auto)				- "auto"_exact;
-	BuildPattern(Token::Type::kw_bool)				- "bool"_exact;
-	BuildPattern(Token::Type::kw_break)				- "break"_exact;
-	BuildPattern(Token::Type::kw_case)				- "case"_exact;
-	BuildPattern(Token::Type::kw_catch)				- "catch"_exact;
-	BuildPattern(Token::Type::kw_char)				- "char"_exact;
-	BuildPattern(Token::Type::kw_char8_t)			- "char8_t"_exact;
-	BuildPattern(Token::Type::kw_char16_t)			- "char16_t"_exact;
-	BuildPattern(Token::Type::kw_char32_t)			- "char32_t"_exact;
-	BuildPattern(Token::Type::kw_class)				- "class"_exact;
-	BuildPattern(Token::Type::kw_concept)			- "concept"_exact;
-	BuildPattern(Token::Type::kw_const)				- "const"_exact;
-	BuildPattern(Token::Type::kw_consteval)			- "consteval"_exact;
-	BuildPattern(Token::Type::kw_constexpr)			- "constexpr"_exact;
-	BuildPattern(Token::Type::kw_constinit)			- "constinit"_exact;
-	BuildPattern(Token::Type::kw_const_cast)		- "const_cast"_exact;
-	BuildPattern(Token::Type::kw_continue)			- "continue"_exact;
-	BuildPattern(Token::Type::kw_co_await)			- "co_await"_exact;
-	BuildPattern(Token::Type::kw_co_return)			- "co_return"_exact;
-	BuildPattern(Token::Type::kw_co_yield)			- "co_yield"_exact;
-	BuildPattern(Token::Type::kw_decltype)			- "decltype"_exact;
-	BuildPattern(Token::Type::kw_default)			- "default"_exact;
-	BuildPattern(Token::Type::kw_delete)			- "delete"_exact;
-	BuildPattern(Token::Type::kw_do)				- "do"_exact;
-	BuildPattern(Token::Type::kw_double)			- "double"_exact;
-	BuildPattern(Token::Type::kw_dynamic_cast)		- "dynamic_cast"_exact;
-	BuildPattern(Token::Type::kw_else)				- "else"_exact;
-	BuildPattern(Token::Type::kw_enum)				- "enum"_exact;
-	BuildPattern(Token::Type::kw_explicit)			- "explicit"_exact;
-	BuildPattern(Token::Type::kw_export)			- "export"_exact;
-	BuildPattern(Token::Type::kw_extern)			- "extern"_exact;
-	BuildPattern(Token::Type::kw_false)				- "false"_exact;
-	BuildPattern(Token::Type::kw_float)				- "float"_exact;
-	BuildPattern(Token::Type::kw_for)				- "for"_exact;
-	BuildPattern(Token::Type::kw_friend)			- "friend"_exact;
-	BuildPattern(Token::Type::kw_goto)				- "goto"_exact;
-	BuildPattern(Token::Type::kw_if)				- "if"_exact;
-	BuildPattern(Token::Type::kw_inline)			- "inline"_exact;
-	BuildPattern(Token::Type::kw_int)				- "int"_exact;
-	BuildPattern(Token::Type::kw_long)				- "long"_exact;
-	BuildPattern(Token::Type::kw_mutable)			- "mutable"_exact;
-	BuildPattern(Token::Type::kw_namespace)			- "namespace"_exact;
-	BuildPattern(Token::Type::kw_new)				- "new"_exact;
-	BuildPattern(Token::Type::kw_noexcept)			- "noexcept"_exact;
-	BuildPattern(Token::Type::kw_nullptr)			- "nullptr"_exact;
-	BuildPattern(Token::Type::kw_operator)			- "operator"_exact;
-	BuildPattern(Token::Type::kw_private)			- "private"_exact;
-	BuildPattern(Token::Type::kw_protected)			- "protected"_exact;
-	BuildPattern(Token::Type::kw_public)			- "public"_exact;
-	BuildPattern(Token::Type::kw_register)			- "register"_exact;
-	BuildPattern(Token::Type::kw_reinterpret_cast)	- "reinterpret_cast"_exact;
-	BuildPattern(Token::Type::kw_requires)			- "requires"_exact;
-	BuildPattern(Token::Type::kw_return)			- "return"_exact;
-	BuildPattern(Token::Type::kw_short)				- "short"_exact;
-	BuildPattern(Token::Type::kw_signed)			- "signed"_exact;
-	BuildPattern(Token::Type::kw_sizeof)			- "sizeof"_exact;
-	BuildPattern(Token::Type::kw_static)			- "static"_exact;
-	BuildPattern(Token::Type::kw_static_assert)		- "static_assert"_exact;
-	BuildPattern(Token::Type::kw_static_cast)		- "static_cast"_exact;
-	BuildPattern(Token::Type::kw_struct)			- "struct"_exact;
-	BuildPattern(Token::Type::kw_switch)			- "switch"_exact;
-	BuildPattern(Token::Type::kw_template)			- "template"_exact;
-	BuildPattern(Token::Type::kw_this)				- "this"_exact;
-	BuildPattern(Token::Type::kw_thread_local)		- "thread_local"_exact;
-	BuildPattern(Token::Type::kw_throw)				- "throw"_exact;
-	BuildPattern(Token::Type::kw_true)				- "true"_exact;
-	BuildPattern(Token::Type::kw_try)				- "try"_exact;
-	BuildPattern(Token::Type::kw_typedef)			- "typedef"_exact;
-	BuildPattern(Token::Type::kw_typeid)			- "typeid"_exact;
-	BuildPattern(Token::Type::kw_typename)			- "typename"_exact;
-	BuildPattern(Token::Type::kw_union)				- "union"_exact;
-	BuildPattern(Token::Type::kw_unsigned)			- "unsigned"_exact;
-	BuildPattern(Token::Type::kw_using)				- "using"_exact;
-	BuildPattern(Token::Type::kw_virtual)			- "virtual"_exact;
-	BuildPattern(Token::Type::kw_void)				- "void"_exact;
-	BuildPattern(Token::Type::kw_volatile)			- "volatile"_exact;
-	BuildPattern(Token::Type::kw_wchar_t)			- "wchar_t"_exact;
-	BuildPattern(Token::Type::kw_while)				- "while"_exact;
+	BuildPattern(Token::Type::kw_alignas)			= "alignas"_exact;
+	BuildPattern(Token::Type::kw_alignof)			= "alignof"_exact;
+	BuildPattern(Token::Type::kw_asm)				= "asm"_exact;
+	BuildPattern(Token::Type::kw_auto)				= "auto"_exact;
+	BuildPattern(Token::Type::kw_bool)				= "bool"_exact;
+	BuildPattern(Token::Type::kw_break)				= "break"_exact;
+	BuildPattern(Token::Type::kw_case)				= "case"_exact;
+	BuildPattern(Token::Type::kw_catch)				= "catch"_exact;
+	BuildPattern(Token::Type::kw_char)				= "char"_exact;
+	BuildPattern(Token::Type::kw_char8_t)			= "char8_t"_exact;
+	BuildPattern(Token::Type::kw_char16_t)			= "char16_t"_exact;
+	BuildPattern(Token::Type::kw_char32_t)			= "char32_t"_exact;
+	BuildPattern(Token::Type::kw_class)				= "class"_exact;
+	BuildPattern(Token::Type::kw_concept)			= "concept"_exact;
+	BuildPattern(Token::Type::kw_const)				= "const"_exact;
+	BuildPattern(Token::Type::kw_consteval)			= "consteval"_exact;
+	BuildPattern(Token::Type::kw_constexpr)			= "constexpr"_exact;
+	BuildPattern(Token::Type::kw_constinit)			= "constinit"_exact;
+	BuildPattern(Token::Type::kw_const_cast)		= "const_cast"_exact;
+	BuildPattern(Token::Type::kw_continue)			= "continue"_exact;
+	BuildPattern(Token::Type::kw_co_await)			= "co_await"_exact;
+	BuildPattern(Token::Type::kw_co_return)			= "co_return"_exact;
+	BuildPattern(Token::Type::kw_co_yield)			= "co_yield"_exact;
+	BuildPattern(Token::Type::kw_decltype)			= "decltype"_exact;
+	BuildPattern(Token::Type::kw_default)			= "default"_exact;
+	BuildPattern(Token::Type::kw_delete)			= "delete"_exact;
+	BuildPattern(Token::Type::kw_do)				= "do"_exact;
+	BuildPattern(Token::Type::kw_double)			= "double"_exact;
+	BuildPattern(Token::Type::kw_dynamic_cast)		= "dynamic_cast"_exact;
+	BuildPattern(Token::Type::kw_else)				= "else"_exact;
+	BuildPattern(Token::Type::kw_enum)				= "enum"_exact;
+	BuildPattern(Token::Type::kw_explicit)			= "explicit"_exact;
+	BuildPattern(Token::Type::kw_export)			= "export"_exact;
+	BuildPattern(Token::Type::kw_extern)			= "extern"_exact;
+	BuildPattern(Token::Type::kw_false)				= "false"_exact;
+	BuildPattern(Token::Type::kw_float)				= "float"_exact;
+	BuildPattern(Token::Type::kw_for)				= "for"_exact;
+	BuildPattern(Token::Type::kw_friend)			= "friend"_exact;
+	BuildPattern(Token::Type::kw_goto)				= "goto"_exact;
+	BuildPattern(Token::Type::kw_if)				= "if"_exact;
+	BuildPattern(Token::Type::kw_inline)			= "inline"_exact;
+	BuildPattern(Token::Type::kw_int)				= "int"_exact;
+	BuildPattern(Token::Type::kw_long)				= "long"_exact;
+	BuildPattern(Token::Type::kw_mutable)			= "mutable"_exact;
+	BuildPattern(Token::Type::kw_namespace)			= "namespace"_exact;
+	BuildPattern(Token::Type::kw_new)				= "new"_exact;
+	BuildPattern(Token::Type::kw_noexcept)			= "noexcept"_exact;
+	BuildPattern(Token::Type::kw_nullptr)			= "nullptr"_exact;
+	BuildPattern(Token::Type::kw_operator)			= "operator"_exact;
+	BuildPattern(Token::Type::kw_private)			= "private"_exact;
+	BuildPattern(Token::Type::kw_protected)			= "protected"_exact;
+	BuildPattern(Token::Type::kw_public)			= "public"_exact;
+	BuildPattern(Token::Type::kw_register)			= "register"_exact;
+	BuildPattern(Token::Type::kw_reinterpret_cast)	= "reinterpret_cast"_exact;
+	BuildPattern(Token::Type::kw_requires)			= "requires"_exact;
+	BuildPattern(Token::Type::kw_return)			= "return"_exact;
+	BuildPattern(Token::Type::kw_short)				= "short"_exact;
+	BuildPattern(Token::Type::kw_signed)			= "signed"_exact;
+	BuildPattern(Token::Type::kw_sizeof)			= "sizeof"_exact;
+	BuildPattern(Token::Type::kw_static)			= "static"_exact;
+	BuildPattern(Token::Type::kw_static_assert)		= "static_assert"_exact;
+	BuildPattern(Token::Type::kw_static_cast)		= "static_cast"_exact;
+	BuildPattern(Token::Type::kw_struct)			= "struct"_exact;
+	BuildPattern(Token::Type::kw_switch)			= "switch"_exact;
+	BuildPattern(Token::Type::kw_template)			= "template"_exact;
+	BuildPattern(Token::Type::kw_this)				= "this"_exact;
+	BuildPattern(Token::Type::kw_thread_local)		= "thread_local"_exact;
+	BuildPattern(Token::Type::kw_throw)				= "throw"_exact;
+	BuildPattern(Token::Type::kw_true)				= "true"_exact;
+	BuildPattern(Token::Type::kw_try)				= "try"_exact;
+	BuildPattern(Token::Type::kw_typedef)			= "typedef"_exact;
+	BuildPattern(Token::Type::kw_typeid)			= "typeid"_exact;
+	BuildPattern(Token::Type::kw_typename)			= "typename"_exact;
+	BuildPattern(Token::Type::kw_union)				= "union"_exact;
+	BuildPattern(Token::Type::kw_unsigned)			= "unsigned"_exact;
+	BuildPattern(Token::Type::kw_using)				= "using"_exact;
+	BuildPattern(Token::Type::kw_virtual)			= "virtual"_exact;
+	BuildPattern(Token::Type::kw_void)				= "void"_exact;
+	BuildPattern(Token::Type::kw_volatile)			= "volatile"_exact;
+	BuildPattern(Token::Type::kw_wchar_t)			= "wchar_t"_exact;
+	BuildPattern(Token::Type::kw_while)				= "while"_exact;
 #pragma endregion
 	
-	BuildPattern(Token::Type::Hash)				- '#'_c;
 
-	BuildPattern(Token::Type::Semicolon)		- ';'_c;
-	BuildPattern(Token::Type::Comma)			- ','_c;
-	BuildPattern(Token::Type::Colon)			- ':'_c;
-	BuildPattern(Token::Type::Colon_colon)		- "::"_exact;
 
 #pragma region operators
-	BuildPattern(Token::Type::Star)				- '*'_c;
-	BuildPattern(Token::Type::Dot)				- '.'_c;
-	BuildPattern(Token::Type::And)				- '&'_c;
-	BuildPattern(Token::Type::Equals)			- '='_c;
-	BuildPattern(Token::Type::NotEquals)		- "!="_exact;
-	BuildPattern(Token::Type::Plus)				- '+'_c;
-	BuildPattern(Token::Type::PlusPlus)			- "++"_exact;
-	BuildPattern(Token::Type::Minus)			- '-'_c;
-	BuildPattern(Token::Type::MinusMinus)		- "--"_exact;
 
-	BuildPattern(Token::Type::LessLess)			- "<<"_exact;
-	BuildPattern(Token::Type::GreaterGreater)	- ">>"_exact;
+	//Punctuation
+	BuildPattern(Token::Type::L_Brace)				= '{'_c;
+	BuildPattern(Token::Type::R_Brace)				= '}'_c;
+	BuildPattern(Token::Type::L_Bracket)			= '['_c;
+	BuildPattern(Token::Type::R_Bracket)			= ']'_c;
+	BuildPattern(Token::Type::Hash)					= '#'_c;
+	BuildPattern(Token::Type::HashHash)				= "##"_exact;
+	BuildPattern(Token::Type::L_Paren)				= '('_c;
+	BuildPattern(Token::Type::R_Paren)				= ')'_c;
+	BuildPattern(Token::Type::Semicolon)			= ';'_c;
+	BuildPattern(Token::Type::Colon)				= ':'_c;
+	BuildPattern(Token::Type::Ellipsis)				= "..."_exact;
+	//						  kw_new				= "new"_exact;		//also a keyword
+	//						  kw_delete				= "delete"_exact;	//also a keyword
+	BuildPattern(Token::Type::Question)				= '?'_c;
+	BuildPattern(Token::Type::Colon_colon)			= "::"_exact;
+	BuildPattern(Token::Type::Dot)					= '.'_c;
+	BuildPattern(Token::Type::DotStar)				= ".*"_exact;
+	BuildPattern(Token::Type::Arrow)				= "->"_exact;
+	BuildPattern(Token::Type::ArrowStar)			= "->*"_exact;
+	BuildPattern(Token::Type::Comma)				= ','_c;
 
-	BuildPattern(Token::Type::Less)				- '<'_c;
-	BuildPattern(Token::Type::Greater)			- '>'_c;
+ 
+
+
+	//operators
+	BuildPattern(Token::Type::Complement)			= '~'_c;
+	BuildPattern(Token::Type::Not)					= '!'_c;
+	BuildPattern(Token::Type::Plus)					= '+'_c;
+	BuildPattern(Token::Type::Minus)				= '-'_c;
+	BuildPattern(Token::Type::Star)					= '*'_c;
+	BuildPattern(Token::Type::Div)					= '/'_c;
+	BuildPattern(Token::Type::Mod)					= '%'_c;
+	BuildPattern(Token::Type::Xor)					= '^'_c;
+	BuildPattern(Token::Type::BitAnd)				= '&'_c;
+	BuildPattern(Token::Type::BitOr)				= '|'_c;
+	BuildPattern(Token::Type::Equal)				= '='_c;
+	BuildPattern(Token::Type::PlusEqual)			= "+="_exact;
+	BuildPattern(Token::Type::MinusEqual)			= "-="_exact;
+	BuildPattern(Token::Type::StarEqual)			= "*="_exact;
+	BuildPattern(Token::Type::DivEqual)				= "/="_exact;
+	BuildPattern(Token::Type::ModEqual)				= "%="_exact;
+	BuildPattern(Token::Type::ModEqual)				= "%="_exact;
+	BuildPattern(Token::Type::XorEqual)				= "^="_exact;
+	BuildPattern(Token::Type::BitAndEqual)			= "&="_exact;
+	BuildPattern(Token::Type::BitOrEqual)			= "|="_exact;
+	BuildPattern(Token::Type::EqualEqual)			= "=="_exact;
+	BuildPattern(Token::Type::NotEquals)			= "!="_exact;
+	BuildPattern(Token::Type::Less)					= '<'_c;
+	BuildPattern(Token::Type::Greater)				= '>'_c;
+	BuildPattern(Token::Type::LessEqual)			= "<="_exact;
+	BuildPattern(Token::Type::GreaterEqual)			= ">="_exact;
+	BuildPattern(Token::Type::LessEqualGreater)		= "<=>"_exact;
+	BuildPattern(Token::Type::And)					= "&&"_exact;
+	BuildPattern(Token::Type::Or)					= "||"_exact;
+	BuildPattern(Token::Type::LessLess)				= "<<"_exact;
+	BuildPattern(Token::Type::GreaterGreater)		= ">>"_exact;
+	BuildPattern(Token::Type::LessLessEqual)		= "<<="_exact;
+	BuildPattern(Token::Type::GreaterGreaterEqual)	= ">>="_exact;
+	BuildPattern(Token::Type::PlusPlus)				= "++"_exact;
+	BuildPattern(Token::Type::MinusMinus)			= "--"_exact;
+
+
+	//Alternate forms
+	BuildPattern(Token::Type::And)					= "and"_exact;
+	BuildPattern(Token::Type::BitAndEqual)			= "and_eq"_exact;
+	BuildPattern(Token::Type::BitAnd)				= "bitand"_exact;
+	BuildPattern(Token::Type::BitOr)				= "bitor"_exact;
+	BuildPattern(Token::Type::Complement)			= "compl"_exact;
+	BuildPattern(Token::Type::Not)					= "not"_exact;
+	BuildPattern(Token::Type::NotEquals)			= "not_eq"_exact;
+	BuildPattern(Token::Type::Or)					= "or"_exact;
+	BuildPattern(Token::Type::BitOrEqual)			= "or_eq"_exact;
+	BuildPattern(Token::Type::Xor)					= "xor"_exact;
+	BuildPattern(Token::Type::XorEqual)				= "xor_eq"_exact;
+
 #pragma endregion
 
-	BuildPattern(Token::Type::L_Brace)			- '{'_c;
-	BuildPattern(Token::Type::R_Brace)			- '}'_c;
-	BuildPattern(Token::Type::L_Paren)			- '('_c;
-	BuildPattern(Token::Type::R_Paren)			- ')'_c;
-	BuildPattern(Token::Type::L_Bracket)		- '['_c;
-	BuildPattern(Token::Type::R_Bracket)		- ']'_c;
 
-	BuildPattern(Token::Type::Identifier)		- nondigit
-												and Optionally(Repeat(digit or nondigit));
+	BuildPattern(Token::Type::Identifier)			= nondigit
+													and Optionally(Repeat(digit or nondigit));
 
-	BuildPattern(Token::Type::WhiteSpace)		- Repeat(" \t\r\b"_any);
+	BuildPattern(Token::Type::WhiteSpace)			= Repeat(" \t\r\b"_any);
 
-	BuildPattern(Token::Type::Integer)			-	(	("0x"_nocase	and Optionally(Repeat(Optionally('\''_c) and hexadecimal_digit)))
-													or	('0'_c			and Optionally(Repeat(Optionally('\''_c) and octal_digit)))
-													or	("0b"_nocase	and Optionally(Repeat(Optionally('\''_c) and "01"_any)))
-													or	(nonzero_digit	and Optionally(Repeat(Optionally('\''_c) and "0123456789"_any))))
-												and Optionally(
-														("u"_nocase		and Optionally("l"_nocase or "ll"_nocase))
-													or	("l"_nocase		and Optionally("u"_nocase))
-													or	("ll"_nocase	and Optionally("u"_nocase)));
+	BuildPattern(Token::Type::Integer)				=	(	("0x"_nocase	and Optionally(Repeat(Optionally('\''_c) and hexadecimal_digit)))
+														or	('0'_c			and Optionally(Repeat(Optionally('\''_c) and octal_digit)))
+														or	("0b"_nocase	and Optionally(Repeat(Optionally('\''_c) and "01"_any)))
+														or	(nonzero_digit	and Optionally(Repeat(Optionally('\''_c) and "0123456789"_any))))
+													and Optionally(
+															("u"_nocase		and Optionally("l"_nocase or "ll"_nocase))
+														or	("l"_nocase		and Optionally("u"_nocase))
+														or	("ll"_nocase	and Optionally("u"_nocase)));
 
-	BuildPattern(Token::Type::String_literal)	- Optionally(
-														"u8"_exact 
-													or	'u'_c 
-													or	'U'_c 
-													or	'L'_c)
-												and	'"'_c
-												and Optionally(Repeat(
-														"\\\"\n"_notof
-													or	escape_sequence))
-												and '"'_c;
+	BuildPattern(Token::Type::String_literal)		=	Optionally(
+															"u8"_exact 
+														or	'u'_c 
+														or	'U'_c 
+														or	'L'_c)
+													and	'"'_c
+													and Optionally(Repeat(
+															"\\\"\n"_notof
+														or	escape_sequence))
+													and '"'_c;
 
-	BuildPattern(Token::Type::Char_literal)		- Optionally(
-														"u8"_exact
-													or	'u'_c
-													or	'U'_c
-													or	'L'_c)
-												and '\''_c
-												and Repeat(
-														"\\\'\n"_notof
-													or	escape_sequence)
-												and '\''_c;
+	BuildPattern(Token::Type::Char_literal)			=	Optionally(
+															"u8"_exact
+														or	'u'_c
+														or	'U'_c
+														or	'L'_c)
+													and '\''_c
+													and Repeat(
+															"\\\'\n"_notof
+														or	escape_sequence)
+													and '\''_c;
 }
 
 TokenMatcher::PatternBuilder::PatternBuilder(Token::Type aType, std::vector<std::shared_ptr<RootPattern>>& aRootPatternCollection)
@@ -648,7 +699,7 @@ TokenMatcher::PatternBuilder::~PatternBuilder()
 	}
 }
 
-TokenMatcher::PatternBuilder& TokenMatcher::PatternBuilder::operator-(std::shared_ptr<Pattern> aPattern)
+TokenMatcher::PatternBuilder& TokenMatcher::PatternBuilder::operator=(std::shared_ptr<Pattern> aPattern)
 {
 	myPatterns.push_back(aPattern);
 	return *this;

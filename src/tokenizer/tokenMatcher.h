@@ -76,7 +76,7 @@ private:
 
 		~PatternBuilder();
 
-		PatternBuilder& operator-(std::shared_ptr<Pattern> aPattern);
+		PatternBuilder& operator=(std::shared_ptr<Pattern> aPattern);
 		PatternBuilder& operator and(std::shared_ptr<Pattern> aPattern);
 	
 	private:

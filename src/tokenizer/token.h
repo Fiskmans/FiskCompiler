@@ -7,51 +7,14 @@
 struct Token
 {
 public:
-
 	enum class Type
 	{
 		Invalid,
 		Comment,
 
-		Hash,
-
-		Semicolon,
-		Dot,
-		Comma,
-		Colon,
-		Colon_colon,
-
-		Star,
-		And,
-		Equals,
-		NotEquals,
-		Less,
-		LessLess,
-		Greater,
-		GreaterGreater,
-
-
-		Plus,
-		PlusPlus,
-		
-		Minus,
-		MinusMinus,
-
 		Integer,
 		String_literal,
 		Char_literal,
-
-		L_Paren,
-		R_Paren,
-
-		L_Brace,
-		R_Brace,
-		
-		L_Bracket,
-		R_Bracket,
-
-
-		NewLine,
 
 		kw_alignas,
 		kw_alignof,
@@ -135,21 +98,75 @@ public:
 		kw_wchar_t,
 		kw_while,
 
-		WhiteSpace,
+		L_Brace,
+		R_Brace,
+		L_Bracket,
+		R_Bracket,
+		Hash,
+		HashHash,
+		L_Paren,
+		R_Paren,
+		Semicolon,
+		Colon,
+		Ellipsis,
+		Question,
+		Colon_colon,
+		Dot,
+		DotStar,
+		Arrow,
+		ArrowStar,
+		Comma,
 
+		Complement,
+		Not,
+		Plus,
+		Minus,
+		Star,
+		Div,
+		Mod,
+		Xor,
+		BitAnd,
+		BitOr,
+		Equal,
+		PlusEqual,
+		MinusEqual,
+		StarEqual,
+		DivEqual,
+		ModEqual,
+		XorEqual,
+		BitAndEqual,
+		BitOrEqual,
+		EqualEqual,
+		NotEquals,
+		Less,
+		Greater,
+		LessEqual,
+		GreaterEqual,
+		LessEqualGreater,
+		And,
+		Or,
+		LessLess,
+		GreaterGreater,
+		LessLessEqual,
+		GreaterGreaterEqual,
+		PlusPlus,
+		MinusMinus,
+
+		WhiteSpace,
+		NewLine,
 		Identifier
 	};
 
-	Token(Type aType, std::string_view aRawText)
+	Token(Type							aType, std::string_view	aRawText)
 		: myType(aType)
 		, myRawText(aRawText)
 	{
 	}
 
-	static std::string TypeToString(Type);
+	static std::string	TypeToString(Type);
 
-	Type		myType;
-	std::string	myRawText;
+	Type				myType;
+	std::string			myRawText;
 };
 
 #endif
