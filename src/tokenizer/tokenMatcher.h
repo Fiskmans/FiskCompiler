@@ -23,6 +23,7 @@ public:
 		Token::Type tokenType = Token::Type::Invalid;
 		std::string tokenBuffer;
 		std::string endSequence;
+		size_t column;
 	};
 
 

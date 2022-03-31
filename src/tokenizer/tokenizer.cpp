@@ -106,6 +106,57 @@ std::vector<Token> Tokenize(const std::vector<std::string>& aLines)
 	return out;
 }
 
+std::vector<Token> PreCompile(const std::vector<Token>& aTokens)
+{
+	std::vector<Token> out;
+
+	std::vector<Token>::const_iterator readHead = aTokens.begin();
+	auto isEnd = [&aTokens](const std::vector<Token>::const_iterator& aIt) 
+		{ 
+			return aIt == aTokens.end(); 
+		};
+
+	auto getNextNotWhitespace = [&isEnd](std::vector<Token>::const_iterator aIt) -> std::optional<std::vector<Token>::const_iterator> 
+		{
+			aIt++;
+			while(!isEnd(aIt))
+			{
+				if (aIt->myType != Token::Type::WhiteSpace)
+					return aIt;
+			}
+			return {};
+		};
+
+
+	while (!isEnd(readHead))
+	{
+		if (readHead->myType == Token::Type::Include_directive)
+		{
+			if(auto path = getNextNotWhitespace(readHead))
+			{
+				if ((*path)->myType == Token::Type::Header_name)
+				{
+
+				}
+				else
+				{
+					CompilerContext::EmitError("Malformed include directive, expected header name in the form \"header name\" or <header name>", **path);
+				}
+			}
+			else
+			{
+				CompilerContext::EmitError("Malformed include directive, unexpected end of line", *readHead);
+			}
+		}
+
+
+
+		readHead++;
+	}
+
+	return out;
+}
+
 std::vector<Token> Tokenize(const std::string_view& aFilePath)
 {
 	CompilerContext::PushFile(std::string(aFilePath));
@@ -121,7 +172,7 @@ std::vector<Token> Tokenize(const std::string_view& aFilePath)
 
 	std::vector<Token> tokens = Tokenize(logicalSource);
 
-	//#include expand
+	std::vector<Token> precompiled = PreCompile(tokens);
 
 	CompilerContext::PopFile();
 

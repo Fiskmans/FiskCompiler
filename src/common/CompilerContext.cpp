@@ -43,6 +43,11 @@ std::string Escape(std::string aString, size_t& aOutEscapeCount)
 }
 
 
+void CompilerContext::EmitWarning(const std::string& aMessage, const Token& aToken)
+{
+	EmitWarning(aMessage, aToken.myColumn, aToken.myLine, aToken.myRawText.length());
+}
+
 void CompilerContext::EmitWarning(const std::string& aMessage, size_t aColumn, size_t aLine, size_t aSize)
 {
 
@@ -98,6 +103,11 @@ void CompilerContext::EmitWarning(const std::string& aMessage, size_t aColumn, s
 
 		std::cout << "\n\n";
 	}
+}
+
+void CompilerContext::EmitError(const std::string& aMessage, const Token& aToken)
+{
+	EmitError(aMessage, aToken.myColumn, aToken.myLine, aToken.myRawText.length());
 }
 
 void CompilerContext::EmitError(const std::string& aMessage, size_t aColumn, size_t aLine, size_t aSize)

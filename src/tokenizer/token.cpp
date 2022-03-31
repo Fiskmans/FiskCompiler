@@ -9,6 +9,9 @@ std::string Token::TypeToString(Type aType)
 		case Token::Type::Invalid:				return "Invalid";				break;
 		case Token::Type::Comment:				return "Comment";				break;
 
+		case Token::Type::Include_directive:	return "Include_directive";		break;
+		case Token::Type::Header_name:			return "Header_name";			break;
+
 		case Token::Type::Integer:				return "Integer";				break;
 		case Token::Type::String_literal:		return "String_literal";		break;
 		case Token::Type::Char_literal:			return "Char_literal";			break;

@@ -20,7 +20,7 @@ void DumpTokens(std::vector<Token>& tokens)
 		line += Escape(tok.myRawText);
 		annotation += "[" + Token::TypeToString(tok.myType) + "]";
 
-		if (tok.myType == Token::Type::NewLine || line.length() > 80)
+		if (tok.myType == Token::Type::NewLine || line.length() > 120)
 		{
 			std::cout << line << "\n" << annotation << "\n\n";
 			line = "";

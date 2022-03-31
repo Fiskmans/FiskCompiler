@@ -12,6 +12,9 @@ public:
 		Invalid,
 		Comment,
 
+		Include_directive,
+		Header_name,
+
 		Integer,
 		String_literal,
 		Char_literal,
@@ -157,9 +160,11 @@ public:
 		Identifier
 	};
 
-	Token(Type							aType, std::string_view	aRawText)
+	Token(Type aType, std::string_view aRawText, size_t aLine, size_t aColumn)
 		: myType(aType)
 		, myRawText(aRawText)
+		, myLine(aLine)
+		, myColumn(aColumn)
 	{
 	}
 
@@ -167,6 +172,8 @@ public:
 
 	Type				myType;
 	std::string			myRawText;
+	size_t				myColumn;
+	size_t				myLine;
 };
 
 #endif

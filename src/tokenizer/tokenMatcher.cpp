@@ -17,6 +17,9 @@ namespace patterns
 
 		virtual std::optional<size_t> Match(const std::string_view& aView) override
 		{
+			if (aView.length() < 1)
+				return {};
+
 			if (aView[0] == myChar)
 				return 1;
 	
@@ -353,10 +356,14 @@ void TokenMatcher::MatchTokens(std::vector<Token>& aWrite, const std::string& aL
 	std::shared_ptr<Pattern> rawString			= "R\""_exact and Optionally(RepeatCapped(" ()\\\t\f\v"_notof, 16)) and '('_c; // Matches:		R"<delimiter>(
 	std::shared_ptr<Pattern> multiLineComment	= "/*"_exact;
 	std::shared_ptr<Pattern> comment			= "//"_exact;
+	std::shared_ptr<Pattern> includeDiretive	= '#'_c and Optionally(Repeat(" \t"_any)) and "include"_exact;
+	std::shared_ptr<Pattern> headerName			=	('<'_c and Repeat("\n>"_notof) and '>'_c)
+												or	('"'_c and Repeat("\n\""_notof) and '"'_c);
 
 	std::string_view lineLeft = aLine; 
-	size_t aColumn = 0;
+	size_t column = 0;
 
+	bool hasIncludeDirective = false;
 	bool trimWhitespace = CompilerContext::HasFlag("p:no_whitespace");
 
 	while (!lineLeft.empty())
@@ -377,12 +384,22 @@ void TokenMatcher::MatchTokens(std::vector<Token>& aWrite, const std::string& aL
 
 			aContext.tokenBuffer += SplitView(lineLeft, pos + aContext.endSequence.length());
 
-			aWrite.push_back(Token(aContext.tokenType, aContext.tokenBuffer));
+			aWrite.push_back(Token(aContext.tokenType, aContext.tokenBuffer, CompilerContext::GetCurrentLine(), aContext.column));
 
 			aContext.myCurrentTokenIsPotentiallyMultiLine = false;
 			continue;
 		}
 
+		{
+			std::optional<size_t> includeDirectiveResult = includeDiretive->Match(lineLeft);
+			if (includeDirectiveResult)
+			{
+				aWrite.push_back(Token(Token::Type::Include_directive, SplitView(lineLeft, *includeDirectiveResult), CompilerContext::GetCurrentLine(), column));
+				column += *includeDirectiveResult;
+				hasIncludeDirective = true;
+				continue;
+			}
+		}
 
 		{
 			std::optional<size_t> rawStringResult = rawString->Match(lineLeft);
@@ -392,6 +409,8 @@ void TokenMatcher::MatchTokens(std::vector<Token>& aWrite, const std::string& aL
 				aContext.tokenType = Token::Type::String_literal;
 				aContext.tokenBuffer += SplitView(lineLeft, *rawStringResult);
 				aContext.endSequence = ")" + aContext.tokenBuffer.substr(2, *rawStringResult - 3) + "\"";
+				aContext.column = column;
+				column += *rawStringResult;
 				continue;
 			}
 		}
@@ -404,16 +423,28 @@ void TokenMatcher::MatchTokens(std::vector<Token>& aWrite, const std::string& aL
 				aContext.tokenType = Token::Type::Comment;
 				aContext.tokenBuffer += SplitView(lineLeft, *multiLineCommentResult);
 				aContext.endSequence = "*/";
+				aContext.column = column;
+				column += *multiLineCommentResult;
 				continue;
 			}
 		}
 
 		if (comment->Match(lineLeft))
 		{
-			aWrite.push_back(Token(Token::Type::Comment, lineLeft));
+			aWrite.push_back(Token(Token::Type::Comment, lineLeft, CompilerContext::GetCurrentLine(), column));
 			break;
 		}
 
+		if (hasIncludeDirective)
+		{
+			std::optional<size_t> amount = headerName->Match(lineLeft);
+			if(amount)
+			{
+				aWrite.push_back(Token(Token::Type::Header_name, SplitView(lineLeft, *amount), CompilerContext::GetCurrentLine(), column));
+				column += *amount;
+				continue;
+			}
+		}
 
 		for (auto& pattern : ourRootPatterns)
 		{
@@ -425,19 +456,20 @@ void TokenMatcher::MatchTokens(std::vector<Token>& aWrite, const std::string& aL
 			}
 		}
 
+
 		if (toConsume == 0)
 		{
-			CompilerContext::EmitError("Invalid token", aColumn, CompilerContext::GetCurrentLine(), lineLeft.size());
+			CompilerContext::EmitError("Invalid token", column, CompilerContext::GetCurrentLine(), lineLeft.size());
 			break;
 		}
 
 		std::string_view rawToken = SplitView(lineLeft, toConsume);
-		aColumn += toConsume;
+		column += toConsume;
 
 		if (trimWhitespace && resultingType == Token::Type::WhiteSpace)
 			continue;
 
-		aWrite.push_back(Token(resultingType, rawToken));
+		aWrite.push_back(Token(resultingType, rawToken, CompilerContext::GetCurrentLine(), column - toConsume));
 	}
 	if (aContext.myCurrentTokenIsPotentiallyMultiLine)
 	{
@@ -445,7 +477,7 @@ void TokenMatcher::MatchTokens(std::vector<Token>& aWrite, const std::string& aL
 	}
 	else
 	{
-		aWrite.push_back(Token(Token::Type::NewLine, "\n"));
+		aWrite.push_back(Token(Token::Type::NewLine, "\n", CompilerContext::GetCurrentLine(), column));
 	}
 }
 
