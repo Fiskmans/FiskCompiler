@@ -166,6 +166,44 @@ void CompilerContext::EmitError(const std::string& aMessage, size_t aColumn, siz
 	}
 }
 
+std::optional<std::filesystem::path> CompilerContext::FindFile(const std::filesystem::path& aPath, bool aExpandedLookup)
+{
+	if (aExpandedLookup)
+	{
+		for (std::filesystem::path& dir : myBaseDirectories)
+		{
+			std::filesystem::path fullPath = dir;
+			fullPath /= aPath;
+			if (std::filesystem::exists(fullPath))
+			{
+				return fullPath;
+			}
+		}
+	}
+
+	if (aExpandedLookup)
+	{
+		for (std::filesystem::path& dir : myAdditionalDirectories)
+		{
+			std::filesystem::path fullPath = dir;
+			fullPath /= aPath;
+			if (std::filesystem::exists(fullPath))
+			{
+				return fullPath;
+			}
+		}
+	}
+
+	std::filesystem::path fullPath = myFileStack.top().parent_path();
+	fullPath /= aPath;
+	if (std::filesystem::exists(fullPath))
+	{
+		return fullPath;
+	}
+
+	return {};
+}
+
 void CompilerContext::SetPrintContext(const std::vector<std::string>& aPrintContext)
 {
 	myPrintContext = aPrintContext;
@@ -181,9 +219,9 @@ size_t CompilerContext::GetCurrentLine()
 	return myCurrentLine;
 }
 
-void CompilerContext::PushFile(const std::string_view& aFile)
+void CompilerContext::PushFile(const std::filesystem::path& aFile)
 {
-	myFileStack.push(std::string(aFile));
+	myFileStack.push(aFile);
 }
 
 void CompilerContext::PopFile()

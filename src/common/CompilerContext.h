@@ -6,6 +6,8 @@
 #include <vector>
 #include <string_view>
 #include <unordered_map>
+#include <optional>
+#include <filesystem>
 
 #include "tokenizer/token.h"
 
@@ -24,11 +26,13 @@ public:
 	static void EmitError(const std::string& aMessage, const Token& aToken);
 	static void EmitError(const std::string& aMessage, size_t aColumn, size_t aLine = myCurrentLine, size_t aSize = 1);
 
+	static std::optional<std::filesystem::path> FindFile(const std::filesystem::path& aPath, bool aExpandedLookup = false);
+
 	static void SetPrintContext(const std::vector<std::string>& aPrintContext);
 	static void SetCurrentLine(size_t aLine);
 	static size_t GetCurrentLine();
 
-	static void PushFile(const std::string_view& aFile);
+	static void PushFile(const std::filesystem::path& aFile);
 	static void PopFile();
 
 	static bool HasErrors() { return myHasErrors; };
@@ -41,8 +45,10 @@ public:
 private:
 	static bool											myHasErrors;
 	static size_t										myCurrentLine;
-	static std::stack<std::string>						myFileStack;
+	static std::stack<std::filesystem::path>			myFileStack;
 	static std::vector<std::string>						myPrintContext;
+	static std::vector<std::filesystem::path>			myBaseDirectories;
+	static std::vector<std::filesystem::path>			myAdditionalDirectories;
 	static std::unordered_map<std::string, std::string> myFlags;
 };
 
