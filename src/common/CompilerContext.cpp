@@ -7,9 +7,11 @@
 #include <Windows.h>
 #endif
 
+std::vector<std::filesystem::path> CompilerContext::myBaseDirectories;
+std::vector<std::filesystem::path> CompilerContext::myAdditionalDirectories;
 
 std::vector<std::string> CompilerContext::myPrintContext;
-std::stack<std::string> CompilerContext::myFileStack;
+std::stack<std::filesystem::path> CompilerContext::myFileStack;
 bool CompilerContext::myHasErrors = false;
 size_t CompilerContext::myCurrentLine = 0;
 std::unordered_map<std::string, std::string> CompilerContext::myFlags;

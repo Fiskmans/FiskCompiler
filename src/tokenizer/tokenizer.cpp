@@ -109,14 +109,16 @@ std::vector<Token> Tokenize(const std::vector<std::string>& aLines)
 std::vector<Token> PreCompile(const std::vector<Token>& aTokens)
 {
 	std::vector<Token> out;
+	using iterator = std::vector<Token>::const_iterator;
 
-	std::vector<Token>::const_iterator readHead = aTokens.begin();
+
+	iterator readHead = aTokens.begin();
 	auto isEnd = [&aTokens](const std::vector<Token>::const_iterator& aIt) 
 		{ 
 			return aIt == aTokens.end(); 
 		};
 
-	auto getNextNotWhitespace = [&isEnd](std::vector<Token>::const_iterator aIt) -> std::optional<std::vector<Token>::const_iterator> 
+	auto getNextNotWhitespace = [&isEnd](std::vector<Token>::const_iterator aIt) -> std::optional<iterator>
 		{
 			aIt++;
 			while(!isEnd(aIt))
@@ -132,15 +134,30 @@ std::vector<Token> PreCompile(const std::vector<Token>& aTokens)
 	{
 		if (readHead->myType == Token::Type::Include_directive)
 		{
-			if(auto path = getNextNotWhitespace(readHead))
+			if(std::optional<iterator> expectedPath = getNextNotWhitespace(readHead))
 			{
-				if ((*path)->myType == Token::Type::Header_name)
+				iterator path = *expectedPath;
+				if (path->myType == Token::Type::Header_name)
 				{
+					out.push_back(Token(Token::Type::Comment, "Would have included " + path->myRawText, 0, 0));
 
+					if (std::optional<iterator> expectedNewLine = getNextNotWhitespace(path))
+					{
+						iterator newLine = *expectedNewLine;
+						if (newLine->myType != Token::Type::NewLine)
+						{
+							CompilerContext::EmitError("Malformed include directive, expected newline after header_name", *path);
+							break;
+						}
+						readHead = newLine;
+					}
+
+					readHead++;
+					continue;
 				}
 				else
 				{
-					CompilerContext::EmitError("Malformed include directive, expected header name in the form \"header name\" or <header name>", **path);
+					CompilerContext::EmitError("Malformed include directive, expected header name in the form \"header name\" or <header name>", *path);
 				}
 			}
 			else
@@ -149,7 +166,7 @@ std::vector<Token> PreCompile(const std::vector<Token>& aTokens)
 			}
 		}
 
-
+		out.push_back(*readHead);
 
 		readHead++;
 	}
@@ -176,5 +193,5 @@ std::vector<Token> Tokenize(const std::string_view& aFilePath)
 
 	CompilerContext::PopFile();
 
-	return tokens;
+	return precompiled;
 }
