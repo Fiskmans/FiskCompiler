@@ -406,6 +406,9 @@ std::vector<std::filesystem::path> CompilerContext::ParseCommandLine(int argc, c
 		}
 	}
 
+	for (std::filesystem::path& file : files)
+		file = std::filesystem::relative(file);
+
 	return files;
 }
 
