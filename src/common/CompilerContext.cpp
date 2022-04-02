@@ -11,6 +11,7 @@ std::vector<std::filesystem::path> CompilerContext::myBaseDirectories;
 std::vector<std::filesystem::path> CompilerContext::myAdditionalDirectories;
 
 std::vector<std::string> CompilerContext::myPrintContext;
+std::stack<std::vector<std::string>> CompilerContext::myPrintContextStack;
 std::stack<std::filesystem::path> CompilerContext::myFileStack;
 bool CompilerContext::myHasErrors = false;
 size_t CompilerContext::myCurrentLine = 0;
@@ -42,6 +43,17 @@ std::string Escape(std::string aString, size_t& aOutEscapeCount)
 		}
 		at = pos + 1;
 	}
+}
+
+std::string Dequote(std::string aString)
+{
+	if (aString.length() < 2)
+		return aString;
+
+	if (aString.at(0) == '"' && aString.at(aString.length() - 1) == '"')
+		return aString.substr(1, aString.length() - 2);
+
+	return aString;
 }
 
 
@@ -183,25 +195,23 @@ std::optional<std::filesystem::path> CompilerContext::FindFile(const std::filesy
 		}
 	}
 
-	if (aExpandedLookup)
-	{
-		for (std::filesystem::path& dir : myAdditionalDirectories)
-		{
-			std::filesystem::path fullPath = dir;
-			fullPath /= aPath;
-			if (std::filesystem::exists(fullPath))
-			{
-				return fullPath;
-			}
-		}
-	}
-
 	std::filesystem::path fullPath = myFileStack.top().parent_path();
 	fullPath /= aPath;
 	if (std::filesystem::exists(fullPath))
 	{
 		return fullPath;
 	}
+
+	for (std::filesystem::path& dir : myAdditionalDirectories)
+	{
+		std::filesystem::path fullPath = dir;
+		fullPath /= aPath;
+		if (std::filesystem::exists(fullPath))
+		{
+			return fullPath;
+		}
+	}
+
 
 	return {};
 }
@@ -224,16 +234,73 @@ size_t CompilerContext::GetCurrentLine()
 void CompilerContext::PushFile(const std::filesystem::path& aFile)
 {
 	myFileStack.push(aFile);
+	myPrintContextStack.push(myPrintContext);
 }
 
 void CompilerContext::PopFile()
 {
 	myFileStack.pop();
+	SetPrintContext(myPrintContextStack.top());
+	myPrintContextStack.pop();
 }
 
-std::vector<const char*> CompilerContext::ParseCommandLine(int argc, char** argv)
+bool MatchesPattern(std::string aFilePath, std::string aPattern)
 {
-	std::vector<const char*> files;
+	std::vector<std::string> parts;
+	
+	{
+		size_t at = 0;
+		do 
+		{
+			size_t next = aPattern.find('*', at);
+			if (next == std::string::npos)
+				break;
+
+			if (at == 0 && next > 0)
+				parts.push_back("");
+			
+			parts.push_back(aPattern.substr(at, next - at));
+			at = next + 1;
+
+		} while (true);
+		parts.push_back(aPattern.substr(at));
+	}
+
+	size_t at = 0;
+	size_t part = 0;
+	do 
+	{
+		if (parts[part] == "")
+		{
+			part++;
+			continue;
+		}
+
+		size_t next = aFilePath.find(parts[part], at);
+		if (next == std::string::npos)
+			break;
+
+		if (at != 0)
+		{
+			size_t dirSeperator = aFilePath.find_first_of("/\\", at);
+			if (dirSeperator != std::string::npos && dirSeperator < next)
+				break;
+		}
+
+		at = next + parts[part].length();
+
+		part++;
+	} while (part < parts.size());
+		
+	return at == aFilePath.length();
+
+}
+
+
+
+std::vector<std::filesystem::path> CompilerContext::ParseCommandLine(int argc, char** argv)
+{
+	std::vector<std::string> potentialFiles;
 	for (size_t i = 1; i < argc; i++)
 	{
 		if (*argv[i] == '-')
@@ -246,27 +313,107 @@ std::vector<const char*> CompilerContext::ParseCommandLine(int argc, char** argv
 				flagValue = argv[i + 1];
 				i++;
 			}
-			myFlags.insert(std::pair(flagName, flagValue));
+
+
+			if (flagName == "p:additional_include")
+			{
+				myAdditionalDirectories.push_back(Dequote(flagValue));
+			}
+			else if (flagName == "dir")
+			{
+				potentialFiles.push_back(flagValue + "*.cpp");
+				myAdditionalDirectories.push_back(flagValue);
+			}
+			else
+			{
+				myFlags.insert(std::pair(flagName, Dequote(flagValue)));
+			}
 		}
 		else
 		{
-			files.push_back(argv[i]);
+			potentialFiles.push_back(argv[i]);
+		}
+	}
+
+	if (!GetFlag("p:no_std"))
+	{
+		if (std::optional<std::string> dir = GetFlag("p:custom_std"))
+			myBaseDirectories.push_back(*dir);
+		else
+			myBaseDirectories.push_back("include");
+	}
+
+	if (!GetFlag("p:no_platform"))
+	{
+#if WIN32
+		if (std::optional<std::string> dir = GetFlag("p:custom_windows"))
+			myBaseDirectories.push_back(*dir);
+		else
+			myBaseDirectories.push_back("windows");
+#endif
+	}
+
+
+
+	std::vector<std::filesystem::path> files;
+
+	for (const std::string& target : potentialFiles)
+	{
+
+		size_t starPos = target.find('*');
+		if (starPos == std::string::npos)
+		{
+			files.push_back(target);
+			continue;
+		}
+
+		std::string pattern = target;
+		std::filesystem::recursive_directory_iterator it(std::filesystem::current_path());
+		
+		if (starPos > 0)
+		{
+			size_t dirSeparator = target.find_last_of("/\\", starPos);
+			if (dirSeparator != std::string::npos)
+			{
+				pattern = target.substr(dirSeparator + 1);
+				std::filesystem::path basePath = target.substr(0, dirSeparator + 1);
+				if (basePath.is_absolute())
+				{
+
+					it = std::filesystem::recursive_directory_iterator(basePath);
+				}
+				else
+				{
+					std::filesystem::path dir = std::filesystem::current_path();
+					dir /= basePath;
+					it = std::filesystem::recursive_directory_iterator(dir);
+				}
+			}
+		}
+
+
+		while (it != std::filesystem::recursive_directory_iterator())
+		{
+			if (it->is_regular_file())
+			{
+				std::string file = it->path().string();
+				if (MatchesPattern(file, pattern))
+				{
+					files.push_back(file);
+				}
+			}
+			it++;
 		}
 	}
 
 	return files;
 }
 
-bool CompilerContext::HasFlag(const std::string_view& aFlag)
-{
-	return myFlags.count(std::string(aFlag)) != 0;
-}
-
-std::string CompilerContext::GetFlag(const std::string_view& aFlag)
+std::optional<const std::string> CompilerContext::GetFlag(const std::string_view& aFlag)
 {
 	if(myFlags.count(std::string(aFlag)) != 0)
 	{
 		return myFlags.at(std::string(aFlag));
 	}
-	return "";
+	return {};
 }

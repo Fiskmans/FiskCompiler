@@ -125,6 +125,7 @@ std::vector<Token> PreCompile(const std::vector<Token>& aTokens)
 			{
 				if (aIt->myType != Token::Type::WhiteSpace)
 					return aIt;
+				aIt++;
 			}
 			return {};
 		};

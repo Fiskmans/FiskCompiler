@@ -16,6 +16,7 @@ namespace {
 }
 
 std::string Escape(std::string aString, size_t& aOutEscapeCount = dummy);
+std::string Dequote(std::string aString);
 
 class CompilerContext
 {
@@ -37,16 +38,16 @@ public:
 
 	static bool HasErrors() { return myHasErrors; };
 
-	static std::vector<const char*> ParseCommandLine(int argc, char** argv);
+	static std::vector<std::filesystem::path> ParseCommandLine(int argc, char** argv);
 
-	static bool HasFlag(const std::string_view& aFlag);
-	static std::string GetFlag(const std::string_view& aFlag);
+	static std::optional<const std::string> GetFlag(const std::string_view& aFlag);
 
 private:
 	static bool											myHasErrors;
 	static size_t										myCurrentLine;
 	static std::stack<std::filesystem::path>			myFileStack;
 	static std::vector<std::string>						myPrintContext;
+	static std::stack<std::vector<std::string>>			myPrintContextStack;
 	static std::vector<std::filesystem::path>			myBaseDirectories;
 	static std::vector<std::filesystem::path>			myAdditionalDirectories;
 	static std::unordered_map<std::string, std::string> myFlags;

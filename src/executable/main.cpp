@@ -33,7 +33,7 @@ void DumpTokens(std::vector<Token>& tokens)
 
 int main(int argc, char** argv)
 {
-	std::vector<const char*> files = CompilerContext::ParseCommandLine(argc, argv);
+	std::vector<std::filesystem::path> files = CompilerContext::ParseCommandLine(argc, argv);
 
 	if (files.empty())
 	{
@@ -41,7 +41,7 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	for (const char* file : files)
+	for (std::filesystem::path file : files)
 	{
 		std::vector<Token> tokens = Tokenize(file);
 

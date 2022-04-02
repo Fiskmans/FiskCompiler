@@ -364,7 +364,7 @@ void TokenMatcher::MatchTokens(std::vector<Token>& aWrite, const std::string& aL
 	size_t column = 0;
 
 	bool hasIncludeDirective = false;
-	bool trimWhitespace = CompilerContext::HasFlag("p:no_whitespace");
+	bool trimWhitespace = !!CompilerContext::GetFlag("p:no_whitespace");
 
 	while (!lineLeft.empty())
 	{
