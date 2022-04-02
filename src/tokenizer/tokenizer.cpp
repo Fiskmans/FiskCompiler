@@ -139,7 +139,18 @@ std::vector<Token> PreCompile(const std::vector<Token>& aTokens)
 				iterator path = *expectedPath;
 				if (path->myType == Token::Type::Header_name)
 				{
-					out.push_back(Token(Token::Type::Comment, "Would have included " + path->myRawText, 0, 0));
+					std::string_view rawPath(path->myRawText.begin() + 1, path->myRawText.end() - 1); // trim quotes and anglebrackets
+					bool expandedSearch = path->myRawText[0] == '<';
+					if (std::optional<std::filesystem::path> expectedFilePath = CompilerContext::FindFile(rawPath, expandedSearch))
+					{
+						std::vector<Token> fileTokens = Tokenize(*expectedFilePath);
+
+						out.insert(out.begin(), begin(fileTokens), end(fileTokens));
+					}
+					else
+					{
+						CompilerContext::EmitError("Malformed include directive, unable to find file: " + std::string(rawPath), *path);
+					}
 
 					if (std::optional<iterator> expectedNewLine = getNextNotWhitespace(path))
 					{
@@ -174,11 +185,11 @@ std::vector<Token> PreCompile(const std::vector<Token>& aTokens)
 	return out;
 }
 
-std::vector<Token> Tokenize(const std::string_view& aFilePath)
+std::vector<Token> Tokenize(const std::filesystem::path& aFilePath)
 {
-	CompilerContext::PushFile(std::string(aFilePath));
+	CompilerContext::PushFile(aFilePath);
 
-	std::vector<std::string> physicalSource = ReadWholeFile(std::string(aFilePath));
+	std::vector<std::string> physicalSource = ReadWholeFile(aFilePath);
 	CompilerContext::SetPrintContext(physicalSource);
 	
 	std::vector<std::string> escapedPhysicalSource = UniversalEscape(physicalSource);

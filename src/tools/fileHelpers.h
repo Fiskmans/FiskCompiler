@@ -4,8 +4,8 @@
 
 #include <vector>
 #include <string>
-#include <string_view>
+#include <filesystem>
 
-std::vector<std::string> ReadWholeFile(const std::string& aFilePath);
+std::vector<std::string> ReadWholeFile(const std::filesystem::path& aFilePath);
 
 #endif

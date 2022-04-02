@@ -3,10 +3,10 @@
 
 #include <vector>
 #include <string>
-#include <string_view>
+#include <filesystem>
 
 #include "tokenizer/token.h"
 
-std::vector<Token> Tokenize(const std::string_view& aFilePath);
+std::vector<Token> Tokenize(const std::filesystem::path& aFilePath);
 
 #endif
