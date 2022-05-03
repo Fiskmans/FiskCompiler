@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#if WIN32
+#if _WIN32
 #define NOMINMAX
 #include <Windows.h>
 #endif
@@ -80,7 +80,7 @@ void CompilerContext::EmitWarning(const std::string& aMessage, size_t aColumn, s
 
 	std::cout << "WARNING";
 
-#if WIN32
+#if _WIN32
 	std::cout << std::flush;
 	if(!SetConsoleTextAttribute(hConsole, screenBufferInfo.wAttributes))
 		 return;
@@ -97,7 +97,7 @@ void CompilerContext::EmitWarning(const std::string& aMessage, size_t aColumn, s
 			std::cout << ' ';
 		}
 
-#if WIN32
+#if _WIN32
 	std::cout << std::flush;
 	 if(!SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY | (screenBufferInfo.wAttributes & backgroundMask)))
 		 return;
@@ -109,7 +109,7 @@ void CompilerContext::EmitWarning(const std::string& aMessage, size_t aColumn, s
 			std::cout << '~';
 		}
 
-#if WIN32
+#if _WIN32
 	std::cout << std::flush;
 	if(!SetConsoleTextAttribute(hConsole, screenBufferInfo.wAttributes))
 		 return;
@@ -143,7 +143,7 @@ void CompilerContext::EmitError(const std::string& aMessage, size_t aColumn, siz
 
 	std::cerr << "ERROR";
 	
-#if WIN32
+#if _WIN32
 	std::cout << std::flush;
 	if(!SetConsoleTextAttribute(hConsole, screenBufferInfo.wAttributes))
 		 return;
@@ -158,7 +158,7 @@ void CompilerContext::EmitError(const std::string& aMessage, size_t aColumn, siz
 			std::cout << ' ';
 		}
 
-#if WIN32
+#if _WIN32
 		std::cout << std::flush;
 		 if(!SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY | (screenBufferInfo.wAttributes & backgroundMask)))
 			 return;
@@ -170,7 +170,7 @@ void CompilerContext::EmitError(const std::string& aMessage, size_t aColumn, siz
 			std::cout << '~';
 		}
 
-#if WIN32
+#if _WIN32
 		std::cout << std::flush;
 		if(!SetConsoleTextAttribute(hConsole, screenBufferInfo.wAttributes))
 			 return;
@@ -340,12 +340,12 @@ std::vector<std::filesystem::path> CompilerContext::ParseCommandLine(int argc, c
 		if (std::optional<std::string> dir = GetFlag("p:custom_std"))
 			myBaseDirectories.push_back(*dir);
 		else
-			myBaseDirectories.push_back("include");
+			myBaseDirectories.push_back("std");
 	}
 
 	if (!GetFlag("p:no_platform"))
 	{
-#if WIN32
+#if _WIN32
 		if (std::optional<std::string> dir = GetFlag("p:custom_windows"))
 			myBaseDirectories.push_back(*dir);
 		else

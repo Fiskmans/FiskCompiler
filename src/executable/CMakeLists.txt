@@ -14,9 +14,16 @@ target_link_libraries(fiskCompiler PUBLIC common)
 #                   COMMAND ${CMAKE_COMMAND} -E copy_if_different
 #                       ${PROJECT_BINARY_DIR}\..\std\*.cpp ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}\$<CONFIGURATION>\std\)
 
-set(STD_LIBRARY_FOLDER ${CMAKE_SOURCE_DIR}/src/std)
-set(STD_LIBRARY_TARGET $<TARGET_FILE_DIR:fiskCompiler>)
-message(${STD_LIBRARY_FOLDER})
-message(target: ${STD_LIBRARY_TARGET})
+set(STD_LIBRARY_FOLDER ${CMAKE_SOURCE_DIR}/src/standard_libraries)
+set(DATA_FOLDER ${CMAKE_SOURCE_DIR}/data)
+set(TARGET_FOLDER $<TARGET_FILE_DIR:fiskCompiler>)
+
+message(std folder: ${STD_LIBRARY_FOLDER})
+message(data folder: ${DATA_FOLDER})
+message(target: ${TARGET_FOLDER})
+
 add_custom_command(TARGET fiskCompiler POST_BUILD
-                   COMMAND ${CMAKE_COMMAND} -E copy_directory ${STD_LIBRARY_FOLDER} ${STD_LIBRARY_TARGET})
+                   COMMAND ${CMAKE_COMMAND} -E copy_directory ${STD_LIBRARY_FOLDER} ${TARGET_FOLDER})
+				   
+add_custom_command(TARGET fiskCompiler POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy_directory ${DATA_FOLDER} ${TARGET_FOLDER})
