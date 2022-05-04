@@ -7,6 +7,8 @@
 #include <Windows.h>
 #endif
 
+FeatureSwitch CompilerContext::myWarningSwitches("data/warnings.txt");
+
 std::vector<std::filesystem::path> CompilerContext::myBaseDirectories;
 std::vector<std::filesystem::path> CompilerContext::myAdditionalDirectories;
 
@@ -314,8 +316,7 @@ std::vector<std::filesystem::path> CompilerContext::ParseCommandLine(int argc, c
 				i++;
 			}
 
-
-			if (flagName == "p:additional_include")
+			if (flagName == "p:additional_include" || flagName == "p:i")
 			{
 				myAdditionalDirectories.push_back(Dequote(flagValue));
 			}
@@ -323,6 +324,10 @@ std::vector<std::filesystem::path> CompilerContext::ParseCommandLine(int argc, c
 			{
 				potentialFiles.push_back(flagValue + "*.cpp");
 				myAdditionalDirectories.push_back(flagValue);
+			}
+			else if (flagName == "file" || flagName == "f")
+			{
+				potentialFiles.push_back(flagValue);
 			}
 			else
 			{

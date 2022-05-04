@@ -2,160 +2,179 @@
 #include "tokenizer/token.h"
 
 
+bool Token::IsPrepoccessorSpecific() const
+{
+	
+	switch (myType)
+	{
+	case Token::Type::Invalid:
+	case Token::Type::Comment:
+	case Token::Type::Include_directive:
+	case Token::Type::Header_name:
+	case Token::Type::Hash:
+	case Token::Type::HashHash:
+	case Token::Type::WhiteSpace:
+	case Token::Type::NewLine:
+		return true;
+	default:
+		return false;
+	}
+}
+
 std::string Token::TypeToString(Type aType)
 {
 	switch (aType)	
 	{
-		case Token::Type::Invalid:				return "Invalid";				break;
-		case Token::Type::Comment:				return "Comment";				break;
+		case Token::Type::Invalid:				return "Invalid";
+		case Token::Type::Comment:				return "Comment";
 
-		case Token::Type::Include_directive:	return "Include_directive";		break;
-		case Token::Type::Header_name:			return "Header_name";			break;
+		case Token::Type::Include_directive:	return "Include_directive";
+		case Token::Type::Header_name:			return "Header_name";
 
-		case Token::Type::Integer:				return "Integer";				break;
-		case Token::Type::String_literal:		return "String_literal";		break;
-		case Token::Type::Char_literal:			return "Char_literal";			break;
+		case Token::Type::Integer:				return "Integer";
+		case Token::Type::String_literal:		return "String_literal";
+		case Token::Type::Char_literal:			return "Char_literal";
 
-		case Token::Type::kw_alignas:			return "kw_alignas";			break;
-		case Token::Type::kw_alignof:			return "kw_alignof";			break;
-		case Token::Type::kw_asm:				return "kw_asm";				break;
-		case Token::Type::kw_auto:				return "kw_auto";				break;
-		case Token::Type::kw_bool:				return "kw_bool";				break;
-		case Token::Type::kw_break:				return "kw_break";				break;
-		case Token::Type::kw_case:				return "kw_case";				break;
-		case Token::Type::kw_catch:				return "kw_catch";				break;
-		case Token::Type::kw_char:				return "kw_char";				break;
-		case Token::Type::kw_char8_t:			return "kw_char8_t";			break;
-		case Token::Type::kw_char16_t:			return "kw_char16_t";			break;
-		case Token::Type::kw_char32_t:			return "kw_char32_t";			break;
-		case Token::Type::kw_class:				return "kw_class";				break;
-		case Token::Type::kw_concept:			return "kw_concept";			break;
-		case Token::Type::kw_const:				return "kw_const";				break;
-		case Token::Type::kw_consteval:			return "kw_consteval";			break;
-		case Token::Type::kw_constexpr:			return "kw_constexpr";			break;
-		case Token::Type::kw_constinit:			return "kw_constinit";			break;
-		case Token::Type::kw_const_cast:		return "kw_const_cast";			break;
-		case Token::Type::kw_continue:			return "kw_continue";			break;
-		case Token::Type::kw_co_await:			return "kw_co_await";			break;
-		case Token::Type::kw_co_return:			return "kw_co_return";			break;
-		case Token::Type::kw_co_yield:			return "kw_co_yield";			break;
-		case Token::Type::kw_decltype:			return "kw_decltype";			break;
-		case Token::Type::kw_default:			return "kw_default";			break;
-		case Token::Type::kw_delete:			return "kw_delete";				break;
-		case Token::Type::kw_do:				return "kw_do";					break;
-		case Token::Type::kw_double:			return "kw_double";				break;
-		case Token::Type::kw_dynamic_cast:		return "kw_dynamic_cast";		break;
-		case Token::Type::kw_else:				return "kw_else";				break;
-		case Token::Type::kw_enum:				return "kw_enum";				break;
-		case Token::Type::kw_explicit:			return "kw_explicit";			break;
-		case Token::Type::kw_export:			return "kw_export";				break;
-		case Token::Type::kw_extern:			return "kw_extern";				break;
-		case Token::Type::kw_false:				return "kw_false";				break;
-		case Token::Type::kw_float:				return "kw_float";				break;
-		case Token::Type::kw_for:				return "kw_for";				break;
-		case Token::Type::kw_friend:			return "kw_friend";				break;
-		case Token::Type::kw_goto:				return "kw_goto";				break;
-		case Token::Type::kw_if:				return "kw_if";					break;
-		case Token::Type::kw_inline:			return "kw_inline";				break;
-		case Token::Type::kw_int:				return "kw_int";				break;
-		case Token::Type::kw_long:				return "kw_long";				break;
-		case Token::Type::kw_mutable:			return "kw_mutable";			break;
-		case Token::Type::kw_namespace:			return "kw_namespace";			break;
-		case Token::Type::kw_new:				return "kw_new";				break;
-		case Token::Type::kw_noexcept:			return "kw_noexcept";			break;
-		case Token::Type::kw_nullptr:			return "kw_nullptr";			break;
-		case Token::Type::kw_operator:			return "kw_operator";			break;
-		case Token::Type::kw_private:			return "kw_private";			break;
-		case Token::Type::kw_protected:			return "kw_protected";			break;
-		case Token::Type::kw_public:			return "kw_public";				break;
-		case Token::Type::kw_register:			return "kw_register";			break;
-		case Token::Type::kw_reinterpret_cast:	return "kw_reinterpret_cast";	break;
-		case Token::Type::kw_requires:			return "kw_requires";			break;
-		case Token::Type::kw_return:			return "kw_return";				break;
-		case Token::Type::kw_short:				return "kw_short";				break;
-		case Token::Type::kw_signed:			return "kw_signed";				break;
-		case Token::Type::kw_sizeof:			return "kw_sizeof";				break;
-		case Token::Type::kw_static:			return "kw_static";				break;
-		case Token::Type::kw_static_assert:		return "kw_static_assert";		break;
-		case Token::Type::kw_static_cast:		return "kw_static_cast";		break;
-		case Token::Type::kw_struct:			return "kw_struct";				break;
-		case Token::Type::kw_switch:			return "kw_switch";				break;
-		case Token::Type::kw_template:			return "kw_template";			break;
-		case Token::Type::kw_this:				return "kw_this";				break;
-		case Token::Type::kw_thread_local:		return "kw_thread_local";		break;
-		case Token::Type::kw_throw:				return "kw_throw";				break;
-		case Token::Type::kw_true:				return "kw_true";				break;
-		case Token::Type::kw_try:				return "kw_try";				break;
-		case Token::Type::kw_typedef:			return "kw_typedef";			break;
-		case Token::Type::kw_typeid:			return "kw_typeid";				break;
-		case Token::Type::kw_typename:			return "kw_typename";			break;
-		case Token::Type::kw_union:				return "kw_union";				break;
-		case Token::Type::kw_unsigned:			return "kw_unsigned";			break;
-		case Token::Type::kw_using:				return "kw_using";				break;
-		case Token::Type::kw_virtual:			return "kw_virtual";			break;
-		case Token::Type::kw_void:				return "kw_void";				break;
-		case Token::Type::kw_volatile:			return "kw_volatile";			break;
-		case Token::Type::kw_wchar_t:			return "kw_wchar_t";			break;
-		case Token::Type::kw_while:				return "kw_while";				break;
+		case Token::Type::kw_alignas:			return "kw_alignas";
+		case Token::Type::kw_alignof:			return "kw_alignof";
+		case Token::Type::kw_asm:				return "kw_asm";
+		case Token::Type::kw_auto:				return "kw_auto";
+		case Token::Type::kw_bool:				return "kw_bool";
+		case Token::Type::kw_break:				return "kw_break";
+		case Token::Type::kw_case:				return "kw_case";
+		case Token::Type::kw_catch:				return "kw_catch";
+		case Token::Type::kw_char:				return "kw_char";
+		case Token::Type::kw_char8_t:			return "kw_char8_t";
+		case Token::Type::kw_char16_t:			return "kw_char16_t";
+		case Token::Type::kw_char32_t:			return "kw_char32_t";
+		case Token::Type::kw_class:				return "kw_class";
+		case Token::Type::kw_concept:			return "kw_concept";
+		case Token::Type::kw_const:				return "kw_const";
+		case Token::Type::kw_consteval:			return "kw_consteval";
+		case Token::Type::kw_constexpr:			return "kw_constexpr";
+		case Token::Type::kw_constinit:			return "kw_constinit";
+		case Token::Type::kw_const_cast:		return "kw_const_cast";
+		case Token::Type::kw_continue:			return "kw_continue";
+		case Token::Type::kw_co_await:			return "kw_co_await";
+		case Token::Type::kw_co_return:			return "kw_co_return";
+		case Token::Type::kw_co_yield:			return "kw_co_yield";
+		case Token::Type::kw_decltype:			return "kw_decltype";
+		case Token::Type::kw_default:			return "kw_default";
+		case Token::Type::kw_delete:			return "kw_delete";
+		case Token::Type::kw_do:				return "kw_do";
+		case Token::Type::kw_double:			return "kw_double";
+		case Token::Type::kw_dynamic_cast:		return "kw_dynamic_cast";
+		case Token::Type::kw_else:				return "kw_else";
+		case Token::Type::kw_enum:				return "kw_enum";
+		case Token::Type::kw_explicit:			return "kw_explicit";
+		case Token::Type::kw_export:			return "kw_export";
+		case Token::Type::kw_extern:			return "kw_extern";
+		case Token::Type::kw_false:				return "kw_false";
+		case Token::Type::kw_float:				return "kw_float";
+		case Token::Type::kw_for:				return "kw_for";
+		case Token::Type::kw_friend:			return "kw_friend";
+		case Token::Type::kw_goto:				return "kw_goto";
+		case Token::Type::kw_if:				return "kw_if";
+		case Token::Type::kw_inline:			return "kw_inline";
+		case Token::Type::kw_int:				return "kw_int";
+		case Token::Type::kw_long:				return "kw_long";
+		case Token::Type::kw_mutable:			return "kw_mutable";
+		case Token::Type::kw_namespace:			return "kw_namespace";
+		case Token::Type::kw_new:				return "kw_new";
+		case Token::Type::kw_noexcept:			return "kw_noexcept";
+		case Token::Type::kw_nullptr:			return "kw_nullptr";
+		case Token::Type::kw_operator:			return "kw_operator";
+		case Token::Type::kw_private:			return "kw_private";
+		case Token::Type::kw_protected:			return "kw_protected";
+		case Token::Type::kw_public:			return "kw_public";
+		case Token::Type::kw_register:			return "kw_register";
+		case Token::Type::kw_reinterpret_cast:	return "kw_reinterpret_cast";
+		case Token::Type::kw_requires:			return "kw_requires";
+		case Token::Type::kw_return:			return "kw_return";
+		case Token::Type::kw_short:				return "kw_short";
+		case Token::Type::kw_signed:			return "kw_signed";
+		case Token::Type::kw_sizeof:			return "kw_sizeof";
+		case Token::Type::kw_static:			return "kw_static";
+		case Token::Type::kw_static_assert:		return "kw_static_assert";
+		case Token::Type::kw_static_cast:		return "kw_static_cast";
+		case Token::Type::kw_struct:			return "kw_struct";
+		case Token::Type::kw_switch:			return "kw_switch";
+		case Token::Type::kw_template:			return "kw_template";
+		case Token::Type::kw_this:				return "kw_this";
+		case Token::Type::kw_thread_local:		return "kw_thread_local";
+		case Token::Type::kw_throw:				return "kw_throw";
+		case Token::Type::kw_true:				return "kw_true";
+		case Token::Type::kw_try:				return "kw_try";
+		case Token::Type::kw_typedef:			return "kw_typedef";
+		case Token::Type::kw_typeid:			return "kw_typeid";
+		case Token::Type::kw_typename:			return "kw_typename";
+		case Token::Type::kw_union:				return "kw_union";
+		case Token::Type::kw_unsigned:			return "kw_unsigned";
+		case Token::Type::kw_using:				return "kw_using";
+		case Token::Type::kw_virtual:			return "kw_virtual";
+		case Token::Type::kw_void:				return "kw_void";
+		case Token::Type::kw_volatile:			return "kw_volatile";
+		case Token::Type::kw_wchar_t:			return "kw_wchar_t";
+		case Token::Type::kw_while:				return "kw_while";
 
-		case Token::Type::L_Brace:				return "L_Brace";				break;
-		case Token::Type::R_Brace:				return "R_Brace";				break;
-		case Token::Type::L_Bracket:			return "L_Bracket";				break;
-		case Token::Type::R_Bracket:			return "R_Bracket";				break;
-		case Token::Type::Hash:					return "Hash";					break;
-		case Token::Type::HashHash:				return "HashHash";				break;
-		case Token::Type::L_Paren:				return "L_Paren";				break;
-		case Token::Type::R_Paren:				return "R_Paren";				break;
-		case Token::Type::Semicolon:			return "Semicolon";				break;
-		case Token::Type::Colon:				return "Colon";					break;
-		case Token::Type::Ellipsis:				return "Ellipsis";				break;
-		case Token::Type::Question:				return "Question";				break;
-		case Token::Type::Colon_colon:			return "Colon_colon";			break;
-		case Token::Type::Dot:					return "Dot";					break;
-		case Token::Type::DotStar:				return "DotStar";				break;
-		case Token::Type::Arrow:				return "Arrow";					break;
-		case Token::Type::ArrowStar:			return "ArrowStar";				break;
-		case Token::Type::Comma:				return "Comma";					break;
+		case Token::Type::L_Brace:				return "L_Brace";
+		case Token::Type::R_Brace:				return "R_Brace";
+		case Token::Type::L_Bracket:			return "L_Bracket";
+		case Token::Type::R_Bracket:			return "R_Bracket";
+		case Token::Type::Hash:					return "Hash";
+		case Token::Type::HashHash:				return "HashHash";
+		case Token::Type::L_Paren:				return "L_Paren";
+		case Token::Type::R_Paren:				return "R_Paren";
+		case Token::Type::Semicolon:			return "Semicolon";
+		case Token::Type::Colon:				return "Colon";
+		case Token::Type::Ellipsis:				return "Ellipsis";
+		case Token::Type::Question:				return "Question";
+		case Token::Type::Colon_colon:			return "Colon_colon";
+		case Token::Type::Dot:					return "Dot";
+		case Token::Type::DotStar:				return "DotStar";
+		case Token::Type::Arrow:				return "Arrow";
+		case Token::Type::ArrowStar:			return "ArrowStar";
+		case Token::Type::Comma:				return "Comma";
 
-		case Token::Type::Complement:			return "Complement";			break;
-		case Token::Type::Not:					return "Not";					break;
-		case Token::Type::Plus:					return "Plus";					break;
-		case Token::Type::Minus:				return "Minus";					break;
-		case Token::Type::Star:					return "Star";					break;
-		case Token::Type::Div:					return "Div";					break;
-		case Token::Type::Mod:					return "Mod";					break;
-		case Token::Type::Xor:					return "Xor";					break;
-		case Token::Type::BitAnd:				return "BitAnd";				break;
-		case Token::Type::BitOr:				return "BitOr";					break;
-		case Token::Type::Equal:				return "Equal";					break;
-		case Token::Type::PlusEqual:			return "PlusEqual";				break;
-		case Token::Type::MinusEqual:			return "MinusEqual";			break;
-		case Token::Type::StarEqual:			return "StarEqual";				break;
-		case Token::Type::DivEqual:				return "DivEqual";				break;
-		case Token::Type::ModEqual:				return "ModEqual";				break;
-		case Token::Type::XorEqual:				return "XorEqual";				break;
-		case Token::Type::BitAndEqual:			return "BitAndEqual";			break;
-		case Token::Type::BitOrEqual:			return "BitOrEqual";			break;
-		case Token::Type::EqualEqual:			return "EqualEqual";			break;
-		case Token::Type::NotEquals:			return "NotEquals";				break;
-		case Token::Type::Less:					return "Less";					break;
-		case Token::Type::Greater:				return "Greater";				break;
-		case Token::Type::LessEqual:			return "LessEqual";				break;
-		case Token::Type::GreaterEqual:			return "GreaterEqual";			break;
-		case Token::Type::LessEqualGreater:		return "LessEqualGreater";		break;
-		case Token::Type::And:					return "And";					break;
-		case Token::Type::Or:					return "Or";					break;
-		case Token::Type::LessLess:				return "LessLess";				break;
-		case Token::Type::GreaterGreater:		return "GreaterGreater";		break;
-		case Token::Type::LessLessEqual:		return "LessLessEqual";			break;
-		case Token::Type::GreaterGreaterEqual:	return "GreaterGreaterEqual";	break;
-		case Token::Type::PlusPlus:				return "PlusPlus";				break;
-		case Token::Type::MinusMinus:			return "MinusMinus";			break;
+		case Token::Type::Complement:			return "Complement";
+		case Token::Type::Not:					return "Not";
+		case Token::Type::Plus:					return "Plus";
+		case Token::Type::Minus:				return "Minus";
+		case Token::Type::Star:					return "Star";
+		case Token::Type::Div:					return "Div";
+		case Token::Type::Mod:					return "Mod";
+		case Token::Type::Xor:					return "Xor";
+		case Token::Type::BitAnd:				return "BitAnd";
+		case Token::Type::BitOr:				return "BitOr";
+		case Token::Type::Equal:				return "Equal";
+		case Token::Type::PlusEqual:			return "PlusEqual";
+		case Token::Type::MinusEqual:			return "MinusEqual";
+		case Token::Type::StarEqual:			return "StarEqual";
+		case Token::Type::DivEqual:				return "DivEqual";
+		case Token::Type::ModEqual:				return "ModEqual";
+		case Token::Type::XorEqual:				return "XorEqual";
+		case Token::Type::BitAndEqual:			return "BitAndEqual";
+		case Token::Type::BitOrEqual:			return "BitOrEqual";
+		case Token::Type::EqualEqual:			return "EqualEqual";
+		case Token::Type::NotEquals:			return "NotEquals";
+		case Token::Type::Less:					return "Less";
+		case Token::Type::Greater:				return "Greater";
+		case Token::Type::LessEqual:			return "LessEqual";
+		case Token::Type::GreaterEqual:			return "GreaterEqual";
+		case Token::Type::LessEqualGreater:		return "LessEqualGreater";
+		case Token::Type::And:					return "And";
+		case Token::Type::Or:					return "Or";
+		case Token::Type::LessLess:				return "LessLess";
+		case Token::Type::GreaterGreater:		return "GreaterGreater";
+		case Token::Type::LessLessEqual:		return "LessLessEqual";
+		case Token::Type::GreaterGreaterEqual:	return "GreaterGreaterEqual";
+		case Token::Type::PlusPlus:				return "PlusPlus";
+		case Token::Type::MinusMinus:			return "MinusMinus";
 
-		case Token::Type::WhiteSpace:			return "WhiteSpace";			break;
-		case Token::Type::NewLine:				return "NewLine";				break;
+		case Token::Type::WhiteSpace:			return "WhiteSpace";
+		case Token::Type::NewLine:				return "NewLine";
 
-		case Token::Type::Identifier:			return "Identifier";			break;
+		case Token::Type::Identifier:			return "Identifier";
 	}
 
 	return "Missing token spec for " + std::to_string(static_cast<int>(aType));

@@ -10,6 +10,7 @@
 #include <filesystem>
 
 #include "tokenizer/token.h"
+#include "common/FeatureSwitch.h"
 
 namespace {
 	thread_local size_t dummy;
@@ -43,6 +44,8 @@ public:
 	static std::optional<const std::string> GetFlag(const std::string_view& aFlag);
 
 private:
+
+	static FeatureSwitch								myWarningSwitches;
 	static bool											myHasErrors;
 	static size_t										myCurrentLine;
 	static std::stack<std::filesystem::path>			myFileStack;
