@@ -140,7 +140,7 @@ std::vector<Token> PreCompile(const std::vector<Token>& aTokens)
 				iterator path = *expectedPath;
 				if (path->myType == Token::Type::Header_name)
 				{
-					std::string_view rawPath(path->myRawText.begin() + 1, path->myRawText.end() - 1); // trim quotes and anglebrackets
+					std::string_view rawPath(path->myRawText.begin() + 1, path->myRawText.end() - 1); // trim quotes and angle brackets
 					bool expandedSearch = path->myRawText[0] == '<';
 					if (std::optional<std::filesystem::path> expectedFilePath = CompilerContext::FindFile(rawPath, expandedSearch))
 					{
