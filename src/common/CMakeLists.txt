@@ -1,6 +1,10 @@
 
 list(APPEND SOURCE_FILES CompilerContext.cpp)
 list(APPEND SOURCE_FILES CompilerContext.h)
+list(APPEND SOURCE_FILES HelpPrinter.cpp)
+list(APPEND SOURCE_FILES HelpPrinter.h)
+list(APPEND SOURCE_FILES FeatureSwitch.cpp)
+list(APPEND SOURCE_FILES FeatureSwitch.h)
 
 add_library(common "${SOURCE_FILES}")
 

@@ -168,6 +168,8 @@ public:
 	{
 	}
 
+	bool IsPrepoccessorSpecific() const;
+
 	static std::string	TypeToString(Type);
 
 	Type				myType;

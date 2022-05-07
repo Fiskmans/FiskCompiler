@@ -3,14 +3,15 @@
 #include <fstream>
 
 #include "common/CompilerContext.h"
+#include "common/HelpPrinter.h"
 
 #include "tokenizer/tokenizer.h"
 #include "main.h"
 
 
-std::optional<std::ofstream> GetDumpFile(std::filesystem::path aPath, std::string extension)
+std::optional<std::ofstream> GetArtifactsFile(std::filesystem::path aPath, std::string extension)
 {
-	if (std::optional<std::string> outDir = CompilerContext::GetFlag("dump_dir"))
+	if (std::optional<std::string> outDir = CompilerContext::GetFlag("artifact_dir"))
 	{
 		std::filesystem::path p = std::filesystem::current_path();
 		p /= *outDir;
@@ -40,7 +41,7 @@ void DumpTokens(std::vector<Token>& tokens, std::filesystem::path aPath)
 	std::ofstream file;
 	size_t columnLimit = 120;
 
-	if (std::optional<std::ofstream> dumpFile = GetDumpFile(aPath, ".tok"))
+	if (std::optional<std::ofstream> dumpFile = GetArtifactsFile(aPath, ".tok"))
 	{
 		if (*dumpFile)
 		{
@@ -73,14 +74,20 @@ void DumpTokens(std::vector<Token>& tokens, std::filesystem::path aPath)
 	*out << line << "\n" << annotation << "\n\n";
 }
 
+void printHelp()
+{
+	HelpPrinter printer;
+	printer.Emit();
+}
+
 
 int main(int argc, char** argv)
 {
 	std::vector<std::filesystem::path> files = CompilerContext::ParseCommandLine(argc, argv);
 
-	if (files.empty())
+	if (files.empty() || CompilerContext::GetFlag("help") || CompilerContext::GetFlag("h"))
 	{
-		std::cout << "usage " << argv[0] << " file.cpp " << std::endl;
+		printHelp();
 		return EXIT_FAILURE;
 	}
 

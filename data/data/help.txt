@@ -1,0 +1,26 @@
+:windows
+Usage FiskCompiler.exe [-flags] files
+
+-p:custom_windows;custom_windows;Specify custom windows directory
+
+:linux
+Usage FiskCompiler [-flags] files
+-p:custom_sys_root;custom_sys_root;Specify custom sys root directory
+
+:common
+-h,-help;help;prints this help panel, use -h <tag> for extra details;This is the extra details for help
+
+#files
+-dir;dir;Specify directory to compile;Every .cpp in the directory and all of its subdirectories will be included in compilation, additionally the directory will be added to additional includes
+-f,-file;file;Specify file to compile;Explicitly declare a file to compile, can be used to get around other flags without value consuming the file argument
+
+#precompile
+-p:i,-p:additional_include;additional_include;Add extra include directory
+-p:no_whitespace;no_whitespace;preemptivly strips out whitespace
+-p:no_std;no_std;no std library
+-p:custom_std;custom_std;Specify custom std directory
+-p:no_platform;no_platform;no platform libraries
+
+#artifacts
+-artifact_dir;artifact_dir;Specify artifact output dir
+-dump;dump;Specifies which output to dump '-h dump' for options;Options Tokens
