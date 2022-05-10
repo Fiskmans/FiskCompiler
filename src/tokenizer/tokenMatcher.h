@@ -15,9 +15,7 @@ public:
 	struct Context
 	{
 		Context() = default;
-
 		bool NeedsMoreInput() const { return myCurrentTokenIsPotentiallyMultiLine; }
-	private:
 		friend TokenMatcher;
 		
 		bool myCurrentTokenIsPotentiallyMultiLine = false;
@@ -25,7 +23,7 @@ public:
 		Token::Type tokenType = Token::Type::Invalid;
 		std::string tokenBuffer;
 		std::string endSequence;
-		size_t column;
+		size_t column = 0;
 	};
 
 
