@@ -15,6 +15,8 @@ public:
 	struct Context
 	{
 		Context() = default;
+
+		bool NeedsMoreInput() const { return myCurrentTokenIsPotentiallyMultiLine; }
 	private:
 		friend TokenMatcher;
 		
@@ -89,6 +91,7 @@ private:
 
 
 	static void LoadPatterns();
+
 	static PatternBuilder BuildPattern(Token::Type aType)
 	{
 		return PatternBuilder(aType, ourRootPatterns);
