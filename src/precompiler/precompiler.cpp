@@ -2,6 +2,9 @@
 #include <optional>
 #include <filesystem>
 #include <variant>
+#include <functional>
+
+#include <iostream>
 
 #include "common/CompilerContext.h"
 #include "precompiler/precompiler.h"
@@ -38,7 +41,6 @@ void Precompiler::ConsumeLine(FileContext& aFileContext, TokenStream& aOutTokens
 			aIt++;
 		}
 	};
-
 
 	if(std::optional<iterator> startIt = getNextNotWhitespace(begin(aTokens)))
 	{
@@ -185,16 +187,175 @@ Precompiler::IfState Precompiler::EvaluateExpression(std::vector<Token>::const_i
 		std::vector<Token> buffer = TranslateToken(*it);
 		fullExpression.insert(std::end(fullExpression), std::begin(buffer), std::end(buffer));
 	}
+	
+	return EvalutateSequence(fullExpression.begin(), fullExpression.end()) == 0 ? IfState::Inactive : IfState::Active;
+}
 
-	std::stack<Token> pendingOperators;
-	std::stack<int> values;
+#if 1 * -2
+#error
+#endif
 
-	for (Token& tok : fullExpression)
+Precompiler::PreprocessorNumber Precompiler::EvalutateSequence(std::vector<Token>::const_iterator aBegin, std::vector<Token>::const_iterator aEnd)
+{
+	if (aBegin == aEnd)
 	{
-		
+		CompilerContext::EmitError("Expected an expression", 0);
+		return 0;
 	}
 
-	return IfState::Active;
+	const std::vector<Token::Type> unaryOperators = 
+	{
+		Token::Type::Not,
+		Token::Type::Complement,
+		Token::Type::Plus,
+		Token::Type::Minus,
+	};
+
+	const std::vector<std::function<PreprocessorNumber(PreprocessorNumber)>> operatorFunctors = 
+	{
+		[](PreprocessorNumber	aFirst) { return !aFirst; },
+		[](PreprocessorNumber	aFirst) { return ~aFirst; },
+		[](PreprocessorNumber	aFirst) { return +aFirst; },
+		[](PreprocessorNumber	aFirst) { return -aFirst; }
+	};
+
+	const std::vector<Token::Type> operators = 
+	{
+		Token::Type::And,
+		Token::Type::Or,
+		Token::Type::Plus,
+		Token::Type::Minus,
+		Token::Type::Div,
+		Token::Type::Star,
+		Token::Type::Mod
+	};
+
+	const std::vector<std::function<PreprocessorNumber(PreprocessorNumber, PreprocessorNumber)>> operatorFunctors = 
+	{
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst && aSecond; },
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst || aSecond; },
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst + aSecond; },
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst - aSecond; },
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst / aSecond; },
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst * aSecond; },
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst % aSecond; }
+	};
+
+
+
+	std::vector<Token>::const_iterator	it = aBegin;
+
+	std::vector<Token>				pendingOperators;
+	std::vector<PreprocessorNumber> values;
+	
+	auto addValue = [&values, &pendingOperators]()
+	{
+		if(pendingOperators.size() == values.size())
+			return;
+
+
+	};
+
+	while (it != aEnd)
+	{
+		const Token& tok = *it;
+		switch (tok.myType)
+		{
+			case Token::Type::Integer:
+				values.push_back(tok.EvaluateIntegral());
+				break;
+			case Token::Type::L_Paren:
+			{
+				std::vector<Token>::const_iterator matching = FindMatchingEndParen(it + 1, aEnd);
+				values.push_back(EvalutateSequence(it + 1, matching - 1));
+				it = matching;
+			}
+				continue;
+			case Token::Type::WhiteSpace:
+			case Token::Type::NewLine:
+				break;
+			default:
+				if(values.empty())
+				{
+					if (std::find(begin(unaryOperators), end(unaryOperators), tok.myType) != end(unaryOperators))
+						pendingOperators.push_back(tok);
+					else
+						CompilerContext::EmitError("Unexpected token", tok);
+				}
+				else
+				{
+					if(std::find(begin(operators), end(operators), tok.myType) != end(operators))
+						pendingOperators.push_back(tok);
+					else
+						CompilerContext::EmitError("Unexpected token", tok);
+				}
+				
+				break;
+		}
+		it++;
+	}
+
+	if (values.size() == pendingOperators.size())
+	{
+	}
+
+	for (const Token::Type& op : operators)
+	{
+		for (size_t i = 0; i < pendingOperators.size(); i++)
+		{
+			if(pendingOperators[i].myType == op)
+			{
+			}
+		}
+	}
+
+
+	if (values.empty())
+	{
+		CompilerContext::EmitError("Expected an expression", *it);
+		return 0;
+	}
+
+	if (values.size() > 1 && CompilerContext::IsWarningEnabled("if_contamitaion"))
+	{
+		CompilerContext::EmitWarning("Expected single expression", *aBegin);
+	}
+
+	while (values.size() > 1)
+	{
+		values.pop();
+	}
+
+	return PreprocessorNumber();
+}
+
+std::vector<Token>::const_iterator Precompiler::FindMatchingEndParen(std::vector<Token>::const_iterator aBegin, std::vector<Token>::const_iterator aEnd)
+{
+	size_t depth = 1;
+	std::vector<Token>::const_iterator it = aBegin;
+	while (it != aEnd && depth > 0)
+	{
+		switch (it->myType)
+		{
+		case Token::Type::L_Paren:
+			depth++;
+			break;
+
+		case Token::Type::R_Paren:
+			depth--;
+			break;
+		}
+		it++;
+	}
+	if(depth > 0)
+	{
+		if(aBegin != aEnd)
+			CompilerContext::EmitError("Unmatched parenthesis", *(aEnd - 1));
+		else
+			CompilerContext::EmitError("Unmatched parenthesis", 0);
+	}
+
+	return it;
 }
 
 std::vector<Token> Precompiler::TranslateToken(const Token& aToken)

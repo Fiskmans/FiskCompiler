@@ -316,7 +316,14 @@ std::vector<std::filesystem::path> CompilerContext::ParseCommandLine(int argc, c
 				i++;
 			}
 
-			if (flagName == "p:additional_include" || flagName == "p:i")
+			if (flagName.starts_with("w:"))
+			{
+				if(flagValue == "disable")
+					myWarningSwitches.Disable(flagName.substr(2));
+				else
+					myWarningSwitches.Enable(flagName.substr(2));
+			}
+			else if (flagName == "p:additional_include" || flagName == "p:i")
 			{
 				myAdditionalDirectories.push_back(Dequote(flagValue));
 			}
@@ -424,4 +431,9 @@ std::optional<const std::string> CompilerContext::GetFlag(const std::string_view
 		return myFlags.at(std::string(aFlag));
 	}
 	return {};
+}
+
+bool CompilerContext::IsWarningEnabled(const std::string& aWarning)
+{
+	return myWarningSwitches.IsEnabled(aWarning);
 }

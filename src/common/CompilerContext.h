@@ -43,6 +43,8 @@ public:
 
 	static std::optional<const std::string> GetFlag(const std::string_view& aFlag);
 
+	static bool IsWarningEnabled(const std::string& aWarning);
+
 private:
 
 	static FeatureSwitch								myWarningSwitches;

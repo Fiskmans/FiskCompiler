@@ -1,5 +1,5 @@
 
-precompiler:include_guard
+precompiler:include_guard,if_contamitaion
 
 all:precompiler
 
