@@ -191,18 +191,8 @@ Precompiler::IfState Precompiler::EvaluateExpression(std::vector<Token>::const_i
 	return EvalutateSequence(fullExpression.begin(), fullExpression.end()) == 0 ? IfState::Inactive : IfState::Active;
 }
 
-#if 1 * -2
-#error
-#endif
-
-Precompiler::PreprocessorNumber Precompiler::EvalutateSequence(std::vector<Token>::const_iterator aBegin, std::vector<Token>::const_iterator aEnd)
+namespace precompiler_internal
 {
-	if (aBegin == aEnd)
-	{
-		CompilerContext::EmitError("Expected an expression", 0);
-		return 0;
-	}
-
 	const std::vector<Token::Type> unaryOperators = 
 	{
 		Token::Type::Not,
@@ -211,63 +201,104 @@ Precompiler::PreprocessorNumber Precompiler::EvalutateSequence(std::vector<Token
 		Token::Type::Minus,
 	};
 
-	const std::vector<std::function<PreprocessorNumber(PreprocessorNumber)>> operatorFunctors = 
+	const std::vector<std::function<PreprocessorNumber(PreprocessorNumber)>> unaryOperatorFunctors = 
 	{
-		[](PreprocessorNumber	aFirst) { return !aFirst; },
-		[](PreprocessorNumber	aFirst) { return ~aFirst; },
-		[](PreprocessorNumber	aFirst) { return +aFirst; },
-		[](PreprocessorNumber	aFirst) { return -aFirst; }
+		[](PreprocessorNumber aFirst) { return !aFirst; },
+		[](PreprocessorNumber aFirst) { return ~aFirst; },
+		[](PreprocessorNumber aFirst) { return +aFirst; },
+		[](PreprocessorNumber aFirst) { return -aFirst; }
 	};
 
 	const std::vector<Token::Type> operators = 
 	{
-		Token::Type::And,
-		Token::Type::Or,
-		Token::Type::Plus,
-		Token::Type::Minus,
 		Token::Type::Div,
 		Token::Type::Star,
-		Token::Type::Mod
+		Token::Type::Mod,
+
+		Token::Type::Plus,
+		Token::Type::Minus,
+
+		Token::Type::BitAnd,
+
+		Token::Type::Xor,
+
+		Token::Type::BitOr,
+
+		Token::Type::And,
+
+		Token::Type::Or
 	};
 
 	const std::vector<std::function<PreprocessorNumber(PreprocessorNumber, PreprocessorNumber)>> operatorFunctors = 
 	{
-		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst && aSecond; },
-		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst || aSecond; },
-		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst + aSecond; },
-		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst - aSecond; },
 		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst / aSecond; },
 		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst * aSecond; },
-		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst % aSecond; }
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst % aSecond; },
+
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst + aSecond; },
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst - aSecond; },
+
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst & aSecond; },
+
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst ^ aSecond; },
+
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst | aSecond; },
+
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst && aSecond; },
+
+		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst || aSecond; },
 	};
 
+	void AddValue(PreprocessorNumber aValue, std::vector<Token>& aPendingOperators, std::vector<PreprocessorNumber>& aValues)
+	{
+		if (aPendingOperators.size() == aValues.size())
+		{
+			aValues.push_back(aValue);
+			return;
+		}
 
+		Token op = aPendingOperators.back();
+		aPendingOperators.pop_back();
+
+		for (size_t i = 0; i < unaryOperators.size(); i++)
+		{
+			if (op.myType == unaryOperators[i])
+			{
+				std::cout << "performed unary transform " << Token::TypeToString(op.myType) << " on " << aValue << "\n";
+				AddValue(unaryOperatorFunctors[i](aValue), aPendingOperators, aValues);
+				return;
+			}
+		}
+
+		CompilerContext::EmitError("Only unary operators can can be used with a single operand", op);
+	}
+}
+
+PreprocessorNumber Precompiler::EvalutateSequence(std::vector<Token>::const_iterator aBegin, std::vector<Token>::const_iterator aEnd)
+{
+	if (aBegin == aEnd)
+	{
+		CompilerContext::EmitError("Expected an expression", 0);
+		return 0;
+	}
 
 	std::vector<Token>::const_iterator	it = aBegin;
 
 	std::vector<Token>				pendingOperators;
 	std::vector<PreprocessorNumber> values;
 	
-	auto addValue = [&values, &pendingOperators]()
-	{
-		if(pendingOperators.size() == values.size())
-			return;
-
-
-	};
-
 	while (it != aEnd)
 	{
 		const Token& tok = *it;
 		switch (tok.myType)
 		{
 			case Token::Type::Integer:
-				values.push_back(tok.EvaluateIntegral());
+				precompiler_internal::AddValue(tok.EvaluateIntegral(), pendingOperators, values);
 				break;
 			case Token::Type::L_Paren:
 			{
 				std::vector<Token>::const_iterator matching = FindMatchingEndParen(it + 1, aEnd);
-				values.push_back(EvalutateSequence(it + 1, matching - 1));
+				precompiler_internal::AddValue(EvalutateSequence(it + 1, matching - 1), pendingOperators, values);
 				it = matching;
 			}
 				continue;
@@ -277,14 +308,14 @@ Precompiler::PreprocessorNumber Precompiler::EvalutateSequence(std::vector<Token
 			default:
 				if(values.empty())
 				{
-					if (std::find(begin(unaryOperators), end(unaryOperators), tok.myType) != end(unaryOperators))
+					if (std::find(begin(precompiler_internal::unaryOperators), end(precompiler_internal::unaryOperators), tok.myType) != end(precompiler_internal::unaryOperators))
 						pendingOperators.push_back(tok);
 					else
 						CompilerContext::EmitError("Unexpected token", tok);
 				}
 				else
 				{
-					if(std::find(begin(operators), end(operators), tok.myType) != end(operators))
+					if(std::find(begin(precompiler_internal::operators), end(precompiler_internal::operators), tok.myType) != end(precompiler_internal::operators))
 						pendingOperators.push_back(tok);
 					else
 						CompilerContext::EmitError("Unexpected token", tok);
@@ -295,16 +326,30 @@ Precompiler::PreprocessorNumber Precompiler::EvalutateSequence(std::vector<Token
 		it++;
 	}
 
-	if (values.size() == pendingOperators.size())
+	for (size_t opIndex = 0; opIndex < precompiler_internal::operators.size(); opIndex++)
 	{
-	}
+		const Token::Type& op = precompiler_internal::operators[opIndex];
 
-	for (const Token::Type& op : operators)
-	{
 		for (size_t i = 0; i < pendingOperators.size(); i++)
 		{
 			if(pendingOperators[i].myType == op)
 			{
+				if (values.size() < i + 1)
+				{
+					CompilerContext::EmitError("Incomplete expression", 0);
+					return 0;
+				}
+				PreprocessorNumber first = values[i];
+				PreprocessorNumber second = values[i+1];
+				PreprocessorNumber result = precompiler_internal::operatorFunctors[opIndex](first, second);
+
+				std::cout << "did " << Token::TypeToString(op) << " [" << opIndex << "] on " << first << " and " << second << " resuting in " << result << "\n";
+
+				values.erase(begin(values) + i, begin(values) + 2 + i);
+				values.insert(begin(values) + i, result);
+
+				pendingOperators.erase(begin(pendingOperators) + i);
+				i--;
 			}
 		}
 	}
@@ -321,12 +366,8 @@ Precompiler::PreprocessorNumber Precompiler::EvalutateSequence(std::vector<Token
 		CompilerContext::EmitWarning("Expected single expression", *aBegin);
 	}
 
-	while (values.size() > 1)
-	{
-		values.pop();
-	}
-
-	return PreprocessorNumber();
+	std::cout << "\n";
+	return values[0];
 }
 
 std::vector<Token>::const_iterator Precompiler::FindMatchingEndParen(std::vector<Token>::const_iterator aBegin, std::vector<Token>::const_iterator aEnd)

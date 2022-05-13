@@ -4,6 +4,8 @@
 #include <vector>
 #include <unordered_map>
 
+using PreprocessorNumber = long long;
+
 class Precompiler
 {
 	enum class IfState
@@ -29,7 +31,6 @@ public:
 	static void ConsumeLine(FileContext& aFileContext, TokenStream& aOutTokens, const std::vector<Token>& aTokens);
 
 private:
-	using PreprocessorNumber = long long;
 
 	struct Context
 	{
