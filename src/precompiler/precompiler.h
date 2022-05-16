@@ -7,6 +7,8 @@
 #include <functional>
 #include <iostream>
 
+#include "common/RangeCollapse.h"
+
 using PreprocessorNumber = long long;
 
 class Precompiler
@@ -37,9 +39,44 @@ private:
 
 	struct Macro
 	{
+		template<std::ranges::contiguous_range TokenCollection>
+		Macro(TokenCollection aRange);
+
 		template<std::forward_iterator IteratorType>
 		std::vector<Token> Evaluate(IteratorType& aInOutBegin, const IteratorType& aEnd);
 
+		struct Component
+		{
+			~Component()
+			{
+				switch (myType)
+				{
+				case Precompiler::Macro::Component::Type::Token:
+					myToken.~Token();
+					break;
+				case Precompiler::Macro::Component::Type::Argument:
+				case Precompiler::Macro::Component::Type::VariadicExpansion:
+					break;
+				}
+			}
+
+			enum class Type
+			{
+				Token,
+				Argument,
+				VariadicExpansion
+			};
+
+			union
+			{
+				Token myToken;
+				size_t myArgumentIndex;
+			};
+			Type myType;
+		};
+
+		bool myHasVariadic = false;
+		size_t myArguments;
 		std::vector<Token> myTokens;
 	};
 
@@ -295,6 +332,24 @@ inline IteratorType Precompiler::FindMatchingEndParen(IteratorType aBegin, Itera
 	}
 
 	return it;
+}
+
+template<std::ranges::contiguous_range TokenCollection>
+inline void Precompiler::Define(TokenCollection aTokens)
+{
+	Macro macro(std::ranges::views::filter([](Token aToken) { return aToken.myType != Token::Type::WhiteSpace && aToken.myType != Token::Type::NewLine; }));
+
+}
+
+template<std::ranges::contiguous_range TokenCollection>
+inline Precompiler::Macro::Macro(TokenCollection aRange)
+{
+	if (std::ranges::size(aRange) == 0)
+	{
+		CompilerContext::EmitError("Expected an identifier", 0);
+		myType = Type::
+		return;
+	}
 }
 
 template<std::forward_iterator IteratorType>

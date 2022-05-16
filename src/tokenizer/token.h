@@ -3,6 +3,7 @@
 
 #include <string>
 #include <string_view>
+#include <ranges>
 
 struct Token
 {
@@ -168,6 +169,7 @@ public:
 	{
 	}
 
+	//auto NotWhitespace = std::ranges::views::filter([](Token aToken) { return aToken.myType != Type::WhiteSpace && aToken.myType != Type::NewLine; });
 
 	bool IsPrepoccessorSpecific() const;
 	size_t EvaluateIntegral() const;

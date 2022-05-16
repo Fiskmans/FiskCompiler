@@ -100,7 +100,8 @@ void Precompiler::ConsumeLine(FileContext& aFileContext, TokenStream& aOutTokens
 					}
 					else if (identifier->myRawText == "define")
 					{
-
+						Define(IteratorRange(identifier + 1, std::end(aTokens)));
+						return;
 					}
 					return;
 						
