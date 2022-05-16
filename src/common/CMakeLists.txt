@@ -5,6 +5,7 @@ list(APPEND SOURCE_FILES HelpPrinter.cpp)
 list(APPEND SOURCE_FILES HelpPrinter.h)
 list(APPEND SOURCE_FILES FeatureSwitch.cpp)
 list(APPEND SOURCE_FILES FeatureSwitch.h)
+list(APPEND SOURCE_FILES IteratorRange.h)
 
 add_library(common "${SOURCE_FILES}")
 
