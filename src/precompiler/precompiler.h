@@ -58,8 +58,9 @@ private:
 	
 	template<std::ranges::contiguous_range TokenCollection>
 	static PreprocessorNumber EvalutateSequence(TokenCollection aTokens);
-
-	static std::vector<Token>::const_iterator FindMatchingEndParen(std::vector<Token>::const_iterator aBegin, std::vector<Token>::const_iterator aEnd);
+	
+	template<std::forward_iterator IteratorType>
+	static IteratorType FindMatchingEndParen(IteratorType aBegin, IteratorType aEnd);
 
 	template<std::ranges::contiguous_range TokenCollection>
 	static void Define(TokenCollection aTokens);
@@ -84,13 +85,12 @@ inline std::vector<Token> Precompiler::TranslateTokenRange(TokenCollection aToke
 		if (potentialMacro != std::end(myContext.myMacros))
 		{
 			it++;
-			auto [tokens, continuation] = potentialMacro->second.Evaluate(IteratorRange(it, end));
-			stream << tokens;
-			it = continuation;
+			stream << potentialMacro->second.Evaluate(it, end);
 			continue;
 		}
 
-		stream << tok;
+		if (!tok.IsPrepoccessorSpecific())
+			stream << tok;
 		it++;
 	}
 
@@ -164,29 +164,7 @@ namespace precompiler_internal_math
 		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst || aSecond; },
 	};
 
-	void AddValue(PreprocessorNumber aValue, std::vector<Token>& aPendingOperators, std::vector<PreprocessorNumber>& aValues)
-	{
-		if (aPendingOperators.size() == aValues.size())
-		{
-			aValues.push_back(aValue);
-			return;
-		}
-
-		Token op = aPendingOperators.back();
-		aPendingOperators.pop_back();
-
-		for (size_t i = 0; i < unaryOperators.size(); i++)
-		{
-			if (op.myType == unaryOperators[i])
-			{
-				std::cout << "performed unary transform " << Token::TypeToString(op.myType) << " on " << aValue << "\n";
-				AddValue(unaryOperatorFunctors[i](aValue), aPendingOperators, aValues);
-				return;
-			}
-		}
-
-		CompilerContext::EmitError("Only unary operators can can be used with a single operand", op);
-	}
+	void AddValue(PreprocessorNumber aValue, std::vector<Token>& aPendingOperators, std::vector<PreprocessorNumber>& aValues);
 }
 
 template<std::ranges::contiguous_range TokenCollection>
@@ -214,16 +192,18 @@ inline PreprocessorNumber Precompiler::EvalutateSequence(TokenCollection aTokens
 				precompiler_internal_math::AddValue(tok.EvaluateIntegral(), pendingOperators, values);
 				break;
 			case Token::Type::L_Paren: {
-				std::vector<Token>::const_iterator matching = FindMatchingEndParen(it + 1, end);
-				precompiler_internal_math::AddValue(EvalutateSequence(it + 1, matching - 1), pendingOperators, values);
+				it++;
+				auto matching = FindMatchingEndParen(it, end) - 1;
+				PreprocessorNumber number = EvalutateSequence(IteratorRange(it, matching));
+				precompiler_internal_math::AddValue(number, pendingOperators, values);
 				it = matching;
 			}
-				continue;
+				break;
 			case Token::Type::WhiteSpace:
 			case Token::Type::NewLine:
 				break;
 			default:
-				if (values.empty())
+				if (values.empty()) //TODO: this should be when equal not when empty
 				{
 					if (std::find(std::begin(precompiler_internal_math::unaryOperators), std::end(precompiler_internal_math::unaryOperators), tok.myType) != std::end(precompiler_internal_math::unaryOperators))
 						pendingOperators.push_back(tok);
@@ -263,10 +243,10 @@ inline PreprocessorNumber Precompiler::EvalutateSequence(TokenCollection aTokens
 				if(CompilerContext::GetFlag("verbose") == "precompiler_math")
 					std::cout << "did " << Token::TypeToString(op) << " [" << opIndex << "] on " << first << " and " << second << " resulting in " << result << "\n";
 
-				values.erase(begin(values) + i, begin(values) + 2 + i);
-				values.insert(begin(values) + i, result);
+				values.erase(std::begin(values) + i, std::begin(values) + 2 + i);
+				values.insert(std::begin(values) + i, result);
 
-				pendingOperators.erase(begin(pendingOperators) + i);
+				pendingOperators.erase(std::begin(pendingOperators) + i);
 				i--;
 			}
 		}
@@ -285,6 +265,36 @@ inline PreprocessorNumber Precompiler::EvalutateSequence(TokenCollection aTokens
 
 	std::cout << "\n";
 	return values[0];
+}
+
+template<std::forward_iterator IteratorType>
+inline IteratorType Precompiler::FindMatchingEndParen(IteratorType aBegin, IteratorType aEnd)
+{
+	size_t depth = 1;
+	IteratorType it = aBegin;
+	while (it != aEnd && depth > 0)
+	{
+		switch (it->myType)
+		{
+			case Token::Type::L_Paren:
+				depth++;
+				break;
+
+			case Token::Type::R_Paren:
+				depth--;
+				break;
+		}
+		it++;
+	}
+	if (depth > 0)
+	{
+		if (aBegin != aEnd)
+			CompilerContext::EmitError("Unmatched parenthesis", *(aEnd - 1));
+		else
+			CompilerContext::EmitError("Unmatched parenthesis", 0);
+	}
+
+	return it;
 }
 
 template<std::forward_iterator IteratorType>

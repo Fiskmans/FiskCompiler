@@ -175,35 +175,6 @@ void Precompiler::IncludeFile(TokenStream& aOutTokens, const std::vector<Token>&
 	}
 }
 
-std::vector<Token>::const_iterator Precompiler::FindMatchingEndParen(std::vector<Token>::const_iterator aBegin, std::vector<Token>::const_iterator aEnd)
-{
-	size_t depth = 1;
-	std::vector<Token>::const_iterator it = aBegin;
-	while (it != aEnd && depth > 0)
-	{
-		switch (it->myType)
-		{
-		case Token::Type::L_Paren:
-			depth++;
-			break;
-
-		case Token::Type::R_Paren:
-			depth--;
-			break;
-		}
-		it++;
-	}
-	if(depth > 0)
-	{
-		if(aBegin != aEnd)
-			CompilerContext::EmitError("Unmatched parenthesis", *(aEnd - 1));
-		else
-			CompilerContext::EmitError("Unmatched parenthesis", 0);
-	}
-
-	return it;
-}
-
 Precompiler::FileContext::FileContext()
 {
 	myIfStack.push(IfState::Active);
@@ -213,4 +184,35 @@ Precompiler::FileContext::~FileContext()
 {
 	if (myIfStack.size() != 1)
 		CompilerContext::EmitError("Unmatched #if directive at eof", 0, 0, 0);
+}
+
+namespace precompiler_internal_math
+{
+	void AddValue(PreprocessorNumber aValue, std::vector<Token>& aPendingOperators, std::vector<PreprocessorNumber>& aValues)
+	{
+		{
+			if (aPendingOperators.size() == aValues.size())
+			{
+				aValues.push_back(aValue);
+				return;
+			}
+
+			Token op = aPendingOperators.back();
+			aPendingOperators.pop_back();
+
+			for (size_t i = 0; i < unaryOperators.size(); i++)
+			{
+				if (op.myType == unaryOperators[i])
+				{
+					if (CompilerContext::GetFlag("verbose") == "precompiler_math")
+						std::cout << "performed unary transform " << Token::TypeToString(op.myType) << " on " << aValue << "\n";
+
+					AddValue(unaryOperatorFunctors[i](aValue), aPendingOperators, aValues);
+					return;
+				}
+			}
+
+			CompilerContext::EmitError("Only unary operators can can be used with a single operand", op);
+		}
+	}
 }
