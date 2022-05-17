@@ -488,6 +488,25 @@ inline Precompiler::Macro::Macro(TokenCollection aRange)
 		it++;
 		while (it != end)
 		{
+			if(it->myType == Token::Type::Ellipsis)
+			{
+				myHasVariadic = true;
+				it++;
+				if (it == end)
+				{
+					CompilerContext::EmitError("Expected a ')'", CompilerContext::npos);
+					return;
+				}
+
+				if(it->myType != Token::Type::R_Paren)
+				{
+					CompilerContext::EmitError("Expected a ')'", *it);
+					return;
+				}
+				it++;
+				break;
+			}
+
 			if (!it->IsTextToken())
 			{
 				CompilerContext::EmitError("Expected an identifier", *it);
@@ -512,9 +531,75 @@ inline Precompiler::Macro::Macro(TokenCollection aRange)
 				CompilerContext::EmitError("Expected a ',' or ')'", *it);
 				return;
 			}
+			it++;
 		}
 	}
 
+	if (CompilerContext::GetFlag("verbose") == "macros")
+	{
+		if(!arguments.empty())
+		{
+			std::cout << "arguments: ";
+			size_t index = 0;
+			for(const std::string_view& view : arguments)
+				std::cout << index++ << ":" << view << (index != arguments.size() ? ", " : "\n");
+		}
+	}
+
+	if (CompilerContext::GetFlag("verbose") == "macros")
+		std::cout << "Result:";
+
+	while(it != end)
+	{
+		if(it->myRawText == "__VA_ARGS__")
+		{
+			if (CompilerContext::GetFlag("verbose") == "macros")
+				std::cout << " [Variadic arguments]";
+
+			Component comp;
+			comp.myType = Component::Type::VariadicExpansion;
+			myComponents.push_back(comp);
+			it++;
+
+			continue;
+		}
+
+		if(it->IsTextToken())
+		{
+			bool found = false;
+			for(size_t i = 0; i < arguments.size(); i++)
+			{
+				if (arguments[i] == it->myRawText)
+				{
+					if (CompilerContext::GetFlag("verbose") == "macros")
+						std::cout << " {" << i << "}";
+
+					Component comp;
+					comp.myType = Component::Type::Argument;
+					comp.myArgumentIndex = i;
+					myComponents.push_back(comp);
+					it++;
+
+					found = true;
+					break;
+				}
+			}
+			if (found)
+				continue;
+		}
+
+		if (CompilerContext::GetFlag("verbose") == "macros")
+			std::cout << " " << it->myRawText;
+
+		Component comp;
+		comp.myType = Component::Type::Token;
+		comp.myToken = *it;
+		myComponents.push_back(comp);
+		it++;
+	}
+
+	if (CompilerContext::GetFlag("verbose") == "macros")
+		std::cout << "\n";
 }
 
 template<std::forward_iterator IteratorType>

@@ -62,7 +62,7 @@ private:
 		std::string myIdentifier;
 		bool myHasVariadic = false;
 		size_t myArguments = 0;
-		std::vector<Component> myTokens;
+		std::vector<Component> myComponents;
 	};
 
 	struct Context

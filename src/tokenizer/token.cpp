@@ -23,7 +23,8 @@ bool Token::IsPrepoccessorSpecific() const
 
 bool Token::IsTextToken() const
 {
-	return myRawText.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") == std::string::npos;
+	return myRawText.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") > 0 &&
+		myRawText.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 1) == std::string::npos;
 }
 
 size_t Token::EvaluateIntegral() const
