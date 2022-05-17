@@ -168,7 +168,9 @@ public:
 	{
 	}
 
+
 	bool IsPrepoccessorSpecific() const;
+	size_t EvaluateIntegral() const;
 
 	static std::string	TypeToString(Type);
 

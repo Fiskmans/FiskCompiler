@@ -9,6 +9,7 @@ target_include_directories(fiskCompiler PUBLIC ${CMAKE_BINARY_DIR}/src)
 target_link_libraries(fiskCompiler PUBLIC tokenizer)
 target_link_libraries(fiskCompiler PUBLIC tools)
 target_link_libraries(fiskCompiler PUBLIC common)
+target_link_libraries(fiskCompiler PUBLIC precompiler)
 
 #add_custom_command(TARGET fiskCompiler POST_BUILD
 #                   COMMAND ${CMAKE_COMMAND} -E copy_if_different

@@ -25,6 +25,7 @@ std::optional<std::ofstream> GetArtifactsFile(std::filesystem::path aPath, std::
 		{
 			p = p.parent_path();
 			p /= aPath.stem().string() + std::to_string(counter) + extension;
+			counter++;
 		}
 
 		return std::ofstream(p);

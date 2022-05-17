@@ -21,6 +21,60 @@ bool Token::IsPrepoccessorSpecific() const
 	}
 }
 
+size_t Token::EvaluateIntegral() const
+{
+	size_t base = 10;
+	size_t at = 0;
+
+	if(myRawText.starts_with("0"))
+	{
+		base = 8;
+		at = 1;
+	}
+	else if (myRawText.starts_with("0x") || myRawText.starts_with("0X"))
+	{
+		base = 16;
+		at = 2;
+	}
+	else if (myRawText.starts_with("0b") || myRawText.starts_with("0B"))
+	{
+		base = 2;
+		at = 2;
+	}
+
+	size_t total = 0;
+	for(size_t i = at; i < myRawText.size(); i++)
+	{
+		char c = myRawText[i];
+		if(c == '\'')
+			continue;
+
+		size_t current;
+		if(c >= '0' && c <= '9')
+		{
+			current = c - '0';
+		}
+		else if(c >= 'A' && c <= 'F')
+		{
+			current = c - 'A' + 9;
+		}
+		else if (c >= 'a' && c <= 'a')
+		{
+			current = c - 'a' + 9;
+		}
+		else
+			throw std::exception("bad int parse");
+
+		if (current >= base)
+			throw std::exception("bad int parse");
+		
+		total *= base;
+		total += current;
+	}
+
+	return total;
+}
+
 std::string Token::TypeToString(Type aType)
 {
 	switch (aType)	

@@ -5,8 +5,11 @@
 #include "tools/fileHelpers.h"
 
 #include "tokenizer/tokenMatcher.h"
+#include "tokenizer/tokenStream.h"
 
 #include "common/CompilerContext.h"
+
+#include "precompiler/precompiler.h"
 
 // 5.2 Phases of translation Step 1
 std::vector<std::string> UniversalEscape(const std::vector<std::string>& aLines)
@@ -92,98 +95,27 @@ std::vector<std::string> Reduce(const std::vector<std::string>& aLines)
 	return out;
 }
 
-std::vector<Token> Tokenize(const std::vector<std::string>& aLines)
+std::vector<Token> PreCompile(const std::vector<std::string>& aLines)
 {
-	std::vector<Token> out;
+	TokenStream stream;
+	Precompiler::FileContext fileContext;
 
-	TokenMatcher::Context context;
-	for (size_t i = 0; i < aLines.size(); i++)
+	TokenMatcher::Context	tokenContext;
+	size_t i = 0;
+	while (true)
 	{
 		CompilerContext::SetCurrentLine(i);
-		TokenMatcher::MatchTokens(out, aLines[i], context);
-	}
-
-	return out;
-}
-
-std::vector<Token> PreCompile(const std::vector<Token>& aTokens)
-{
-	std::vector<Token> out;
-	using iterator = std::vector<Token>::const_iterator;
-
-
-	iterator readHead = aTokens.begin();
-	auto isEnd = [&aTokens](const std::vector<Token>::const_iterator& aIt) 
-		{ 
-			return aIt == aTokens.end(); 
-		};
-
-	auto getNextNotWhitespace = [&isEnd](std::vector<Token>::const_iterator aIt) -> std::optional<iterator>
+		std::vector<Token> lineTokens;
+		do 
 		{
-			aIt++;
-			while(!isEnd(aIt))
-			{
-				if (aIt->myType != Token::Type::WhiteSpace)
-					return aIt;
-				aIt++;
-			}
-			return {};
-		};
+			if(i == aLines.size())
+				return std::move(stream).Get();
+	
+			TokenMatcher::MatchTokens(lineTokens, aLines[i++], tokenContext);
+		} while (tokenContext.NeedsMoreInput());
 
-
-	while (!isEnd(readHead))
-	{
-		if (readHead->myType == Token::Type::Include_directive)
-		{
-			if(std::optional<iterator> expectedPath = getNextNotWhitespace(readHead))
-			{
-				iterator path = *expectedPath;
-				if (path->myType == Token::Type::Header_name)
-				{
-					std::string_view rawPath(path->myRawText.begin() + 1, path->myRawText.end() - 1); // trim quotes and angle brackets
-					bool expandedSearch = path->myRawText[0] == '<';
-					if (std::optional<std::filesystem::path> expectedFilePath = CompilerContext::FindFile(rawPath, expandedSearch))
-					{
-						std::vector<Token> fileTokens = Tokenize(*expectedFilePath);
-
-						out.insert(out.begin(), begin(fileTokens), end(fileTokens));
-					}
-					else
-					{
-						CompilerContext::EmitError("Malformed include directive, unable to find file: " + std::string(rawPath), *path);
-					}
-
-					if (std::optional<iterator> expectedNewLine = getNextNotWhitespace(path))
-					{
-						iterator newLine = *expectedNewLine;
-						if (newLine->myType != Token::Type::NewLine)
-						{
-							CompilerContext::EmitError("Malformed include directive, expected newline after header_name", *path);
-							break;
-						}
-						readHead = newLine;
-					}
-
-					readHead++;
-					continue;
-				}
-				else
-				{
-					CompilerContext::EmitError("Malformed include directive, expected header name in the form \"header name\" or <header name>", *path);
-				}
-			}
-			else
-			{
-				CompilerContext::EmitError("Malformed include directive, unexpected end of line", *readHead);
-			}
-		}
-
-		out.push_back(*readHead);
-
-		readHead++;
+		Precompiler::ConsumeLine(fileContext, stream, lineTokens);
 	}
-
-	return out;
 }
 
 std::vector<Token> Tokenize(const std::filesystem::path& aFilePath)
@@ -199,11 +131,9 @@ std::vector<Token> Tokenize(const std::filesystem::path& aFilePath)
 	std::vector<std::string> logicalSource = Reduce(escapedPhysicalSource);
 	CompilerContext::SetPrintContext(logicalSource);
 
-	std::vector<Token> tokens = Tokenize(logicalSource);
-
-	std::vector<Token> precompiled = PreCompile(tokens);
+	std::vector<Token> tokens = PreCompile(logicalSource);
 
 	CompilerContext::PopFile();
 
-	return precompiled;
+	return tokens;
 }

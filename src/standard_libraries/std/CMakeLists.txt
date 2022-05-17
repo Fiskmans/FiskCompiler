@@ -2,6 +2,7 @@
 list(APPEND SOURCE_FILES concepts)
 list(APPEND SOURCE_FILES filesystem)
 list(APPEND SOURCE_FILES fstream)
+list(APPEND SOURCE_FILES iomanip)
 list(APPEND SOURCE_FILES iostream)
 list(APPEND SOURCE_FILES memory)
 list(APPEND SOURCE_FILES optional)
