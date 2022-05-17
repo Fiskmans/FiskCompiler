@@ -542,7 +542,7 @@ inline Precompiler::Macro::Macro(TokenCollection aRange)
 			std::cout << "arguments: ";
 			size_t index = 0;
 			for(const std::string_view& view : arguments)
-				std::cout << index++ << ":" << view << (index != arguments.size() ? ", " : "\n");
+				std::cout << index++ << ":" << view << (index != arguments.size() ? ", " : (myHasVariadic ? " ... \n" : "\n"));
 		}
 	}
 
@@ -551,17 +551,20 @@ inline Precompiler::Macro::Macro(TokenCollection aRange)
 
 	while(it != end)
 	{
-		if(it->myRawText == "__VA_ARGS__")
+		if(myHasVariadic)
 		{
-			if (CompilerContext::GetFlag("verbose") == "macros")
-				std::cout << " [Variadic arguments]";
+			if(it->myRawText == "__VA_ARGS__")
+			{
+				if (CompilerContext::GetFlag("verbose") == "macros")
+					std::cout << " [Variadic arguments]";
 
-			Component comp;
-			comp.myType = Component::Type::VariadicExpansion;
-			myComponents.push_back(comp);
-			it++;
+				Component comp;
+				comp.myType = Component::Type::VariadicExpansion;
+				myComponents.push_back(comp);
+				it++;
 
-			continue;
+				continue;
+			}
 		}
 
 		if(it->IsTextToken())
