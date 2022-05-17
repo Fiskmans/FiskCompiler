@@ -80,7 +80,7 @@ std::vector<std::string> Reduce(const std::vector<std::string>& aLines)
 		{
 			if (i + 1 == aLines.size())
 			{
-				CompilerContext::EmitError("[\\] concatination at end of line", i, line.length() - 1);
+				CompilerContext::EmitError("[\\] concatenation at end of line", i, line.length() - 1);
 			}
 
 			std::string concatenated = line.substr(0, line.length() - 1) + aLines[i + 1];
