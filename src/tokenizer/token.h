@@ -183,4 +183,10 @@ public:
 	size_t				myLine;
 };
 
+namespace token_helpers
+{
+	auto IsNotWhitespace = std::ranges::views::filter([](const Token& aToken) { return aToken.myType != Token::Type::WhiteSpace && aToken.myType != Token::Type::NewLine; });
+	auto IsLogical = std::ranges::views::filter([](const Token& aToken ) { return !aToken.IsPrepoccessorSpecific(); });
+}
+
 #endif

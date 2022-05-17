@@ -282,7 +282,7 @@ inline std::vector<Token> Precompiler::TranslateTokenRange(TokenCollection aToke
 {
 	TokenStream stream;
 
-
+	auto filtered = aTokens | token_helpers::IsNotWhitespace;
 	auto it = std::ranges::begin(aTokens);
 	auto end = std::ranges::end(aTokens);
 	while (it != end)
@@ -447,7 +447,7 @@ inline IteratorType Precompiler::FindMatchingEndParen(IteratorType aBegin, Itera
 template<std::ranges::contiguous_range TokenCollection>
 inline void Precompiler::Define(TokenCollection aTokens)
 {
-	Macro macro(aTokens | std::ranges::views::filter([](Token aToken) { return aToken.myType != Token::Type::WhiteSpace && aToken.myType != Token::Type::NewLine; }));
+	Macro macro(aTokens | token_helpers::IsNotWhitespace);
 	if(macro.myIdentifier.empty())
 		return;
 
@@ -535,6 +535,8 @@ inline Precompiler::Macro::Macro(TokenCollection aRange)
 		}
 	}
 
+	myArguments = arguments.size();
+
 	if (CompilerContext::GetFlag("verbose") == "macros")
 	{
 		if(!arguments.empty())
@@ -608,5 +610,119 @@ inline Precompiler::Macro::Macro(TokenCollection aRange)
 template<std::forward_iterator IteratorType>
 inline std::vector<Token> Precompiler::Macro::Evaluate(IteratorType& aInOutBegin, const IteratorType& aEnd)
 {
-	return std::vector<Token>();
+	std::vector<Token> out;
+	
+	if(myArguments != 0 || myHasVariadic)
+	{
+		if(aInOutBegin == aEnd)
+		{
+			CompilerContext::EmitError("Expected '(' for a function like macro");
+			return {};
+		}
+
+		if(aInOutBegin->myType != Token::Type::L_Paren)
+		{
+			CompilerContext::EmitError("Expected '(' for a function like macro", *aInOutBegin);
+			return {};
+		}
+		aInOutBegin++;
+	}
+
+	std::vector<std::vector<Token>> arguments;
+	std::vector<Token> variadic;
+
+	arguments.resize(myArguments);
+
+	bool parenClosed = false;
+	for(size_t i = 0; i < myArguments; i++)
+	{
+		std::vector<Token> arg;
+		size_t depth = 0;
+		while (aInOutBegin != aEnd)
+		{
+			if(aInOutBegin->myType == Token::Type::R_Paren)
+			{
+				if(depth > 0)
+				{
+					depth--;
+					aInOutBegin++;
+					continue;
+				}
+
+				if(i == myArguments - 1)
+				{
+					parenClosed = true;
+					aInOutBegin++;
+					break;
+				}
+
+				CompilerContext::EmitError("Expected more arguments for macro", *aInOutBegin);
+				return {};
+			}
+
+			if(aInOutBegin->myType == Token::Type::L_Paren)
+			{
+				depth++;
+				aInOutBegin++;
+				continue;
+			}
+
+			if (depth == 0)
+			{
+				if(aInOutBegin->myType == Token::Type::Comma)
+				{
+					aInOutBegin++;
+					break;
+				}
+			}
+
+			arguments[i].push_back(*aInOutBegin);
+			aInOutBegin++;
+		}
+	}
+
+	if (myHasVariadic && !parenClosed)
+	{
+		size_t depth = 0;
+		while (aInOutBegin != aEnd)
+		{
+			if(aInOutBegin->myType == Token::Type::L_Paren)
+				depth++;
+
+			if(aInOutBegin->myType == Token::Type::R_Paren)
+			{
+				if(depth == 0)
+				{
+					aInOutBegin++;
+					break;
+				}
+
+				depth--;
+			}
+
+			variadic.push_back(*aInOutBegin);
+			aInOutBegin++;
+		}
+	}
+
+	for (Component& comp : myComponents)
+	{
+		switch (comp.myType)
+		{
+		case Component::Type::Argument:
+			{
+				std::vector<Token>& arg = arguments[comp.myArgumentIndex];
+				out.insert(std::end(out), std::begin(arg), std::end(arg));
+			}
+			break;
+		case Component::Type::Token:
+			out.push_back(*comp.myToken);
+			break;
+		case Component::Type::VariadicExpansion:
+			out.insert(std::end(out), std::begin(variadic), std::end(variadic));
+			break;
+		}
+	}
+
+	return out;
 }
