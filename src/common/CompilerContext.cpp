@@ -88,15 +88,38 @@ void CompilerContext::EmitWarning(const std::string& aMessage, size_t aColumn, s
 		 return;
 #endif
 
-	std::cout << " " << aMessage <<  " [in file " << myFileStack.top() << ":" << aLine << ":" << aColumn << "] " << "\n";
+	std::cout << " " << aMessage <<  " [in file " << myFileStack.top() << ":" << aLine << ":" ;
+
+	if (aColumn == npos)
+	{
+		std::cout << "eol";
+	}
+	else
+	{
+		std::cout << aColumn;
+	}
+
+	std::cout << "] " << "\n";
 
 	if (myPrintContext.size() > aLine)
 	{
-		size_t offset = 0;
-		std::cout << Escape(myPrintContext[aLine], offset) << "\n";
-		for (size_t i = 0; i < aColumn + offset; i++)
+		if(aColumn == npos)
 		{
-			std::cout << ' ';
+			std::string line = Escape(myPrintContext[aLine]);
+			std::cout << line << "\n";
+			for(size_t i = 0; i < line.length(); i++)
+			{
+				std::cout << ' ';
+			}
+		}
+		else
+		{
+			size_t offset = 0;
+			std::cout << Escape(myPrintContext[aLine], offset) << "\n";
+			for (size_t i = 0; i < aColumn + offset; i++)
+			{
+				std::cout << ' ';
+			}
 		}
 
 #if _WIN32
@@ -150,14 +173,37 @@ void CompilerContext::EmitError(const std::string& aMessage, size_t aColumn, siz
 	if(!SetConsoleTextAttribute(hConsole, screenBufferInfo.wAttributes))
 		 return;
 #endif
-	std::cout << " " << aMessage << " [in file " << myFileStack.top() << ":" << aLine << ":" << aColumn << "] "  << "\n";
+	std::cout << " " << aMessage << " [in file " << myFileStack.top() << ":" << aLine << ":";
+	
+	if (aColumn == npos)
+	{
+		std::cout << "eol";
+	}
+	else
+	{
+		std::cout << aColumn;
+	}
+
+	std::cout << "] "  << "\n";
 	if (myPrintContext.size() > aLine)
 	{
-		size_t offset = 0;
-		std::cout << Escape(myPrintContext[aLine], offset) << "\n";
-		for (size_t i = 0; i < aColumn + offset; i++)
+		if (aColumn == npos)
 		{
-			std::cout << ' ';
+			std::string line = Escape(myPrintContext[aLine]);
+			std::cout << line << "\n";
+			for (size_t i = 0; i < line.length(); i++)
+			{
+				std::cout << ' ';
+			}
+		}
+		else
+		{
+			size_t offset = 0;
+			std::cout << Escape(myPrintContext[aLine], offset) << "\n";
+			for (size_t i = 0; i < aColumn + offset; i++)
+			{
+				std::cout << ' ';
+			}
 		}
 
 #if _WIN32
@@ -316,7 +362,14 @@ std::vector<std::filesystem::path> CompilerContext::ParseCommandLine(int argc, c
 				i++;
 			}
 
-			if (flagName == "p:additional_include" || flagName == "p:i")
+			if (flagName.starts_with("w:"))
+			{
+				if(flagValue == "disable")
+					myWarningSwitches.Disable(flagName.substr(2));
+				else
+					myWarningSwitches.Enable(flagName.substr(2));
+			}
+			else if (flagName == "p:additional_include" || flagName == "p:i")
 			{
 				myAdditionalDirectories.push_back(Dequote(flagValue));
 			}
@@ -424,4 +477,9 @@ std::optional<const std::string> CompilerContext::GetFlag(const std::string_view
 		return myFlags.at(std::string(aFlag));
 	}
 	return {};
+}
+
+bool CompilerContext::IsWarningEnabled(const std::string& aWarning)
+{
+	return myWarningSwitches.IsEnabled(aWarning);
 }

@@ -2,7 +2,14 @@
 #include "tokenizer/tokenStream.h"
 
 #include <vector>
+#include <ranges>
 #include <unordered_map>
+#include <functional>
+#include <iostream>
+
+#include "common/RangeCollapse.h"
+
+using PreprocessorNumber = long long;
 
 class Precompiler
 {
@@ -29,15 +36,56 @@ public:
 	static void ConsumeLine(FileContext& aFileContext, TokenStream& aOutTokens, const std::vector<Token>& aTokens);
 
 private:
-	struct Context
+
+	struct Macro
 	{
-		std::unordered_map<std::string, std::vector<Token>> myMacros;
+		template<std::ranges::input_range TokenCollection>
+		Macro(TokenCollection aRange);
+
+		template<std::forward_iterator IteratorType>
+		std::vector<Token> Evaluate(IteratorType& aInOutBegin, const IteratorType& aEnd);
+
+		struct Component
+		{
+			enum class Type
+			{
+				Token,
+				Argument,
+				VariadicExpansion
+			};
+
+			std::optional<Token> myToken;
+			size_t myArgumentIndex;
+			Type myType;
+		};
+
+		std::string myIdentifier;
+		bool myHasVariadic = false;
+		size_t myArguments = 0;
+		std::vector<Component> myComponents;
 	};
 
-	static std::vector<Token> TranslateToken(const Token& aToken);
+	struct Context
+	{
+		std::unordered_map<std::string, Macro> myMacros;
+	};
+	
+	template<std::ranges::contiguous_range TokenCollection>
+	static std::vector<Token> TranslateTokenRange(TokenCollection aTokens);
+	
 	static void IncludeFile(TokenStream& aOutTokens, const std::vector<Token>& aTokens, std::vector<Token>::const_iterator aIncludeIt);
-	static IfState EvaluateExpression(std::vector<Token>::const_iterator aBegin, std::vector<Token>::const_iterator aEnd);
 
+	template<std::ranges::contiguous_range TokenCollection>
+	static IfState EvaluateExpression(TokenCollection aTokens);
+	
+	template<std::ranges::contiguous_range TokenCollection>
+	static PreprocessorNumber EvalutateSequence(TokenCollection aTokens);
+	
+	template<std::forward_iterator IteratorType>
+	static IteratorType FindMatchingEndParen(IteratorType aBegin, IteratorType aEnd);
+
+	template<std::ranges::contiguous_range TokenCollection>
+	static void Define(TokenCollection aTokens);
 
 
 	static Context myContext;

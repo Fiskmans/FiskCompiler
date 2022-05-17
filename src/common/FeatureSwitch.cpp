@@ -4,6 +4,8 @@
 #include <fstream>
 #include <stack>
 
+#include <iostream>
+
 FeatureSwitch::FeatureSwitch(const std::string& aConfigFile)
 {
 	std::ifstream configFile(aConfigFile);
@@ -38,6 +40,8 @@ FeatureSwitch::FeatureSwitch(const std::string& aConfigFile)
 				at = next + 1;
 			}
 		}
+
+		myCollections.emplace(name, mappings);
 	}
 
 	Enable("default");
