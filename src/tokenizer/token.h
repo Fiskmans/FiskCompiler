@@ -172,6 +172,7 @@ public:
 	//auto NotWhitespace = std::ranges::views::filter([](Token aToken) { return aToken.myType != Type::WhiteSpace && aToken.myType != Type::NewLine; });
 
 	bool IsPrepoccessorSpecific() const;
+	bool IsTextToken() const;
 	size_t EvaluateIntegral() const;
 
 	static std::string	TypeToString(Type);

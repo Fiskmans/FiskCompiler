@@ -23,10 +23,10 @@ class CompilerContext
 {
 public:
 	static void EmitWarning(const std::string& aMessage, const Token& aToken);
-	static void EmitWarning(const std::string& aMessage, size_t aColumn, size_t aLine = myCurrentLine, size_t aSize = 1);
+	static void EmitWarning(const std::string& aMessage, size_t aColumn = npos, size_t aLine = myCurrentLine, size_t aSize = 1);
 
 	static void EmitError(const std::string& aMessage, const Token& aToken);
-	static void EmitError(const std::string& aMessage, size_t aColumn, size_t aLine = myCurrentLine, size_t aSize = 1);
+	static void EmitError(const std::string& aMessage, size_t aColumn = npos, size_t aLine = myCurrentLine, size_t aSize = 1);
 
 	static std::optional<std::filesystem::path> FindFile(const std::filesystem::path& aPath, bool aExpandedLookup = false);
 
@@ -44,6 +44,8 @@ public:
 	static std::optional<const std::string> GetFlag(const std::string_view& aFlag);
 
 	static bool IsWarningEnabled(const std::string& aWarning);
+
+	const static size_t npos = ~(0ull);
 
 private:
 
