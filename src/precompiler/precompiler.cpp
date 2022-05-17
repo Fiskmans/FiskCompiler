@@ -100,7 +100,8 @@ void Precompiler::ConsumeLine(FileContext& aFileContext, TokenStream& aOutTokens
 					}
 					else if (identifier->myRawText == "define")
 					{
-						Define(IteratorRange(identifier + 1, std::end(aTokens)));
+						if (currentState == IfState::Active)
+							Define(IteratorRange(identifier + 1, std::end(aTokens)));
 						return;
 					}
 					return;
@@ -472,6 +473,9 @@ inline Precompiler::Macro::Macro(TokenCollection aRange)
 	}
 
 	myIdentifier = it->myRawText;
+
+	if(CompilerContext::GetFlag("verbose") == "macros")
+		std::cout << "new macro added [" << myIdentifier << "] \n";
 
 	it++;
 	if (it == end)
