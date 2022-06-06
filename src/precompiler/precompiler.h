@@ -7,8 +7,6 @@
 #include <functional>
 #include <iostream>
 
-#include "common/RangeCollapse.h"
-
 using PreprocessorNumber = long long;
 
 class Precompiler
@@ -43,7 +41,7 @@ private:
 		Macro(TokenCollection aRange);
 
 		template<std::forward_iterator IteratorType>
-		std::vector<Token> Evaluate(IteratorType& aInOutBegin, const IteratorType& aEnd);
+		std::optional<std::vector<Token>> Evaluate(IteratorType& aInOutBegin, const IteratorType& aEnd);
 
 		struct Component
 		{
