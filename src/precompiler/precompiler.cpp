@@ -293,7 +293,7 @@ inline std::vector<tokenizer::Token> Precompiler::TranslateTokenRange(TokenColle
 		if (potentialMacro != std::end(myContext.myMacros))
 		{
 			it++;
-			if (std::optional<std::vector<Token>> result = potentialMacro->second.Evaluate(it, end))
+			if (std::optional<std::vector<tokenizer::Token>> result = potentialMacro->second.Evaluate(it, end))
 			{
 				stream << *result;
 				continue;
@@ -621,7 +621,7 @@ inline std::optional<std::vector<tokenizer::Token>> Precompiler::Macro::Evaluate
 		if(aInOutBegin == aEnd)
 			return {};
 
-		if(aInOutBegin->myType != Token::Type::L_Paren)
+		if(aInOutBegin->myType != tokenizer::Token::Type::L_Paren)
 			return {};
 
 		aInOutBegin++;
