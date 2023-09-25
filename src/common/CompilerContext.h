@@ -22,11 +22,11 @@ std::string Dequote(std::string aString);
 class CompilerContext
 {
 public:
-	static void EmitWarning(const std::string& aMessage, const Token& aToken);
-	static void EmitWarning(const std::string& aMessage, size_t aColumn = npos, size_t aLine = myCurrentLine, size_t aSize = 1);
+	static void EmitWarning(const std::string& aMessage, const tokenizer::Token& aToken);
+	static void EmitWarning(const std::string& aMessage, std::filesystem::path aFile = myFileStack.top(), size_t aColumn = npos, size_t aLine = myCurrentLine, size_t aSize = 1);
 
-	static void EmitError(const std::string& aMessage, const Token& aToken);
-	static void EmitError(const std::string& aMessage, size_t aColumn = npos, size_t aLine = myCurrentLine, size_t aSize = 1);
+	static void EmitError(const std::string& aMessage, const tokenizer::Token& aToken);
+	static void EmitError(const std::string& aMessage, std::filesystem::path aFile = myFileStack.top(), size_t aColumn = npos, size_t aLine = myCurrentLine, size_t aSize = 1);
 
 	static std::optional<std::filesystem::path> FindFile(const std::filesystem::path& aPath, bool aExpandedLookup = false);
 
@@ -36,6 +36,8 @@ public:
 
 	static void PushFile(const std::filesystem::path& aFile);
 	static void PopFile();
+
+	static std::filesystem::path GetCurrentFile();
 
 	static bool HasErrors() { return myHasErrors; };
 

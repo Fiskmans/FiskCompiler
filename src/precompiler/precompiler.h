@@ -7,8 +7,6 @@
 #include <functional>
 #include <iostream>
 
-#include "common/RangeCollapse.h"
-
 using PreprocessorNumber = long long;
 
 class Precompiler
@@ -33,7 +31,7 @@ public:
 	};
 
 	static void ResetContext();
-	static void ConsumeLine(FileContext& aFileContext, TokenStream& aOutTokens, const std::vector<Token>& aTokens);
+	static void ConsumeLine(FileContext& aFileContext, tokenizer::TokenStream& aOutTokens, const std::vector<tokenizer::Token>& aTokens);
 
 private:
 
@@ -43,7 +41,7 @@ private:
 		Macro(TokenCollection aRange);
 
 		template<std::forward_iterator IteratorType>
-		std::vector<Token> Evaluate(IteratorType& aInOutBegin, const IteratorType& aEnd);
+		std::vector<tokenizer::Token> Evaluate(IteratorType& aInOutBegin, const IteratorType& aEnd);
 
 		struct Component
 		{
@@ -54,7 +52,7 @@ private:
 				VariadicExpansion
 			};
 
-			std::optional<Token> myToken;
+			std::optional<tokenizer::Token> myToken;
 			size_t myArgumentIndex;
 			Type myType;
 		};
@@ -71,9 +69,9 @@ private:
 	};
 	
 	template<std::ranges::contiguous_range TokenCollection>
-	static std::vector<Token> TranslateTokenRange(TokenCollection aTokens);
+	static std::vector<tokenizer::Token> TranslateTokenRange(TokenCollection aTokens);
 	
-	static void IncludeFile(TokenStream& aOutTokens, const std::vector<Token>& aTokens, std::vector<Token>::const_iterator aIncludeIt);
+	static void IncludeFile(tokenizer::TokenStream& aOutTokens, const std::vector<tokenizer::Token>& aTokens, std::vector<tokenizer::Token>::const_iterator aIncludeIt);
 
 	template<std::ranges::contiguous_range TokenCollection>
 	static IfState EvaluateExpression(TokenCollection aTokens);

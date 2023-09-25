@@ -9,6 +9,7 @@ Usage FiskCompiler [-flags] files
 
 :common
 -h,-help;help;prints this help panel, use -h <tag> for extra details;This is the extra details for help
+-verbose;verbose;prints extra information about the compilation '-h verbose' for options;Options: precompiler_math, macros
 
 #files
 -dir;dir;Specify directory to compile;Every .cpp in the directory and all of its subdirectories will be included in compilation, additionally the directory will be added to additional includes
@@ -23,4 +24,4 @@ Usage FiskCompiler [-flags] files
 
 #artifacts
 -artifact_dir;artifact_dir;Specify artifact output dir
--dump;dump;Specifies which output to dump '-h dump' for options;Options Tokens
+-dump;dump;Specifies which output to dump '-h dump' for options;Options: tokens, asm, graph

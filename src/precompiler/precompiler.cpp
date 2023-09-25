@@ -19,15 +19,15 @@ void Precompiler::ResetContext()
 	myContext = Context();
 }
 
-void Precompiler::ConsumeLine(FileContext& aFileContext, TokenStream& aOutTokens, const std::vector<Token>& aTokens)
+void Precompiler::ConsumeLine(FileContext& aFileContext, tokenizer::TokenStream& aOutTokens, const std::vector<tokenizer::Token>& aTokens)
 {
 
-	using iterator = std::vector<Token>::const_iterator;
+	using iterator = std::vector<tokenizer::Token>::const_iterator;
 
 	auto getNextNotWhitespace = [&aTokens](iterator aIt) -> std::optional<iterator> {
 		while (aIt != std::end(aTokens))
 		{
-			if (aIt->myType != Token::Type::WhiteSpace)
+			if (aIt->myType != tokenizer::Token::Type::WhiteSpace)
 				return aIt;
 			aIt++;
 		}
@@ -41,26 +41,26 @@ void Precompiler::ConsumeLine(FileContext& aFileContext, TokenStream& aOutTokens
 
 		switch (start->myType)
 		{
-		case Token::Type::Include_directive:
+		case tokenizer::Token::Type::Include_directive:
 			if (currentState == IfState::Active)
 				IncludeFile(aOutTokens, aTokens, start);
 			return;
-		case Token::Type::Hash:
+		case tokenizer::Token::Type::Hash:
 			if (std::optional<iterator> identifierIt = getNextNotWhitespace(start + 1))
 			{
 				iterator& identifier = *identifierIt;
 				switch (identifier->myType)
 				{
-				case Token::Type::kw_if:
+				case tokenizer::Token::Type::kw_if:
 					aFileContext.myIfStack.push(EvaluateExpression(IteratorRange(identifier + 1, std::end(aTokens))));
 					return;
-				case Token::Type::kw_else:
+				case tokenizer::Token::Type::kw_else:
 					if (currentState == IfState::Active)
 						currentState = IfState::HasBeenActive;
 					else if (currentState == IfState::Inactive)
 						currentState = IfState::Active;
 					return;
-				case Token::Type::Identifier:
+				case tokenizer::Token::Type::Identifier:
 					if (identifier->myRawText == "elif")
 					{
 						if (currentState == IfState::Active)
@@ -125,14 +125,14 @@ void Precompiler::ConsumeLine(FileContext& aFileContext, TokenStream& aOutTokens
 	}
 }
 
-void Precompiler::IncludeFile(TokenStream& aOutTokens, const std::vector<Token>& aTokens, std::vector<Token>::const_iterator aIncludeIt)
+void Precompiler::IncludeFile(tokenizer::TokenStream& aOutTokens, const std::vector<tokenizer::Token>& aTokens, std::vector<tokenizer::Token>::const_iterator aIncludeIt)
 {
-	using iterator = std::vector<Token>::const_iterator;
+	using iterator = std::vector<tokenizer::Token>::const_iterator;
 
 	auto getNextNotWhitespace = [&aTokens](iterator aIt) -> std::optional<iterator> {
 		while (aIt != std::end(aTokens))
 		{
-			if (aIt->myType != Token::Type::WhiteSpace)
+			if (aIt->myType != tokenizer::Token::Type::WhiteSpace)
 				return aIt;
 			aIt++;
 		}
@@ -142,13 +142,13 @@ void Precompiler::IncludeFile(TokenStream& aOutTokens, const std::vector<Token>&
 	if (std::optional<iterator> expectedPath = getNextNotWhitespace(aIncludeIt + 1))
 	{
 		iterator path = *expectedPath;
-		if (path->myType == Token::Type::Header_name)
+		if (path->myType == tokenizer::Token::Type::Header_name)
 		{
 			std::string_view rawPath(path->myRawText.begin() + 1, path->myRawText.end() - 1); // trim quotes and angle brackets
 			bool expandedSearch = path->myRawText[0] == '<';
 			if (std::optional<std::filesystem::path> expectedFilePath = CompilerContext::FindFile(rawPath, expandedSearch))
 			{
-				aOutTokens << Tokenize(*expectedFilePath);
+				aOutTokens << tokenizer::Tokenize(*expectedFilePath);
 			}
 			else
 			{
@@ -158,7 +158,7 @@ void Precompiler::IncludeFile(TokenStream& aOutTokens, const std::vector<Token>&
 			if (std::optional<iterator> expectedNewLine = getNextNotWhitespace(path + 1))
 			{
 				iterator newLine = *expectedNewLine;
-				if (newLine->myType != Token::Type::NewLine)
+				if (newLine->myType != tokenizer::Token::Type::NewLine)
 				{
 					CompilerContext::EmitError("Malformed include directive, expected newline after header_name", *path);
 					return;
@@ -185,18 +185,18 @@ Precompiler::FileContext::FileContext()
 Precompiler::FileContext::~FileContext()
 {
 	if (myIfStack.size() != 1)
-		CompilerContext::EmitError("Unmatched #if directive at eof", 0, 0, 0);
+		CompilerContext::EmitError("Unmatched #if directive at eof");
 }
 
 namespace precompiler_internal_math
 {
 
-	const std::vector<Token::Type> unaryOperators =
+	const std::vector<tokenizer::Token::Type> unaryOperators =
 	{
-		Token::Type::Not,
-		Token::Type::Complement,
-		Token::Type::Plus,
-		Token::Type::Minus,
+		tokenizer::Token::Type::Not,
+		tokenizer::Token::Type::Complement,
+		tokenizer::Token::Type::Plus,
+		tokenizer::Token::Type::Minus,
 	};
 
 	const std::vector<std::function<PreprocessorNumber(PreprocessorNumber)>> unaryOperatorFunctors =
@@ -207,24 +207,24 @@ namespace precompiler_internal_math
 		[](PreprocessorNumber aFirst) { return -aFirst; }
 	};
 
-	const std::vector<Token::Type> operators =
+	const std::vector<tokenizer::Token::Type> operators =
 	{
-		Token::Type::Div,
-		Token::Type::Star,
-		Token::Type::Mod,
+		tokenizer::Token::Type::Div,
+		tokenizer::Token::Type::Star,
+		tokenizer::Token::Type::Mod,
 
-		Token::Type::Plus,
-		Token::Type::Minus,
+		tokenizer::Token::Type::Plus,
+		tokenizer::Token::Type::Minus,
 
-		Token::Type::BitAnd,
+		tokenizer::Token::Type::BitAnd,
 
-		Token::Type::Xor,
+		tokenizer::Token::Type::Xor,
 
-		Token::Type::BitOr,
+		tokenizer::Token::Type::BitOr,
 
-		Token::Type::And,
+		tokenizer::Token::Type::And,
 
-		Token::Type::Or
+		tokenizer::Token::Type::Or
 	};
 
 	const std::vector<std::function<PreprocessorNumber(PreprocessorNumber, PreprocessorNumber)>> operatorFunctors =
@@ -247,7 +247,7 @@ namespace precompiler_internal_math
 		[](PreprocessorNumber aFirst, PreprocessorNumber aSecond) { return aFirst || aSecond; },
 	};
 
-	void AddValue(PreprocessorNumber aValue, std::vector<Token>& aPendingOperators, std::vector<PreprocessorNumber>& aValues)
+	void AddValue(PreprocessorNumber aValue, std::vector<tokenizer::Token>& aPendingOperators, std::vector<PreprocessorNumber>& aValues)
 	{
 		{
 			if (aPendingOperators.size() == aValues.size())
@@ -256,7 +256,7 @@ namespace precompiler_internal_math
 				return;
 			}
 
-			Token op = aPendingOperators.back();
+			tokenizer::Token op = aPendingOperators.back();
 			aPendingOperators.pop_back();
 
 			for (size_t i = 0; i < unaryOperators.size(); i++)
@@ -264,7 +264,7 @@ namespace precompiler_internal_math
 				if (op.myType == unaryOperators[i])
 				{
 					if (CompilerContext::GetFlag("verbose") == "precompiler_math")
-						std::cout << "performed unary transform " << Token::TypeToString(op.myType) << " on " << aValue << "\n";
+						std::cout << "performed unary transform " << tokenizer::Token::TypeToString(op.myType) << " on " << aValue << "\n";
 
 					AddValue(unaryOperatorFunctors[i](aValue), aPendingOperators, aValues);
 					return;
@@ -278,16 +278,16 @@ namespace precompiler_internal_math
 
 
 template<std::ranges::contiguous_range TokenCollection>
-inline std::vector<Token> Precompiler::TranslateTokenRange(TokenCollection aTokens)
+inline std::vector<tokenizer::Token> Precompiler::TranslateTokenRange(TokenCollection aTokens)
 {
-	TokenStream stream;
+	tokenizer::TokenStream stream;
 
-	auto filtered = aTokens | token_helpers::IsNotWhitespace;
+	auto filtered = aTokens | tokenizer::token_helpers::IsNotWhitespace;
 	auto it = std::ranges::begin(aTokens);
 	auto end = std::ranges::end(aTokens);
 	while (it != end)
 	{
-		const Token& tok = *it;
+		const tokenizer::Token& tok = *it;
 
 		decltype(Context::myMacros)::iterator potentialMacro = myContext.myMacros.find(tok.myRawText);
 		if (potentialMacro != std::end(myContext.myMacros))
@@ -308,7 +308,7 @@ inline std::vector<Token> Precompiler::TranslateTokenRange(TokenCollection aToke
 template<std::ranges::contiguous_range TokenCollection>
 inline Precompiler::IfState Precompiler::EvaluateExpression(TokenCollection aTokens)
 {
-	std::vector<Token> buffer = TranslateTokenRange(aTokens);
+	std::vector<tokenizer::Token> buffer = TranslateTokenRange(aTokens);
 
 	return EvalutateSequence(buffer) == 0 ? IfState::Inactive : IfState::Active;
 }
@@ -318,7 +318,7 @@ inline PreprocessorNumber Precompiler::EvalutateSequence(TokenCollection aTokens
 {
 	if (std::ranges::size(aTokens) == 0)
 	{
-		CompilerContext::EmitError("Expected an expression", 0);
+		CompilerContext::EmitError("Expected an expression");
 		return 0;
 	}
 
@@ -326,18 +326,18 @@ inline PreprocessorNumber Precompiler::EvalutateSequence(TokenCollection aTokens
 	auto end = std::ranges::end(aTokens);
 	auto it = begin;
 
-	std::vector<Token> pendingOperators;
+	std::vector<tokenizer::Token> pendingOperators;
 	std::vector<PreprocessorNumber> values;
 
 	while (it != end)
 	{
-		const Token& tok = *it;
+		const tokenizer::Token& tok = *it;
 		switch (tok.myType)
 		{
-		case Token::Type::Integer:
+		case tokenizer::Token::Type::Integer:
 			precompiler_internal_math::AddValue(tok.EvaluateIntegral(), pendingOperators, values);
 			break;
-		case Token::Type::L_Paren: {
+		case tokenizer::Token::Type::L_Paren: {
 			it++;
 			auto matching = FindMatchingEndParen(it, end) - 1;
 			PreprocessorNumber number = EvalutateSequence(IteratorRange(it, matching));
@@ -345,8 +345,8 @@ inline PreprocessorNumber Precompiler::EvalutateSequence(TokenCollection aTokens
 			it = matching;
 		}
 								 break;
-		case Token::Type::WhiteSpace:
-		case Token::Type::NewLine:
+		case tokenizer::Token::Type::WhiteSpace:
+		case tokenizer::Token::Type::NewLine:
 			break;
 		default:
 			if (values.empty()) //TODO: this should be when equal not when empty
@@ -371,7 +371,7 @@ inline PreprocessorNumber Precompiler::EvalutateSequence(TokenCollection aTokens
 
 	for (size_t opIndex = 0; opIndex < precompiler_internal_math::operators.size(); opIndex++)
 	{
-		const Token::Type& op = precompiler_internal_math::operators[opIndex];
+		const tokenizer::Token::Type& op = precompiler_internal_math::operators[opIndex];
 
 		for (size_t i = 0; i < pendingOperators.size(); i++)
 		{
@@ -379,7 +379,7 @@ inline PreprocessorNumber Precompiler::EvalutateSequence(TokenCollection aTokens
 			{
 				if (values.size() < i + 1)
 				{
-					CompilerContext::EmitError("Incomplete expression", 0);
+					CompilerContext::EmitError("Incomplete expression");
 					return 0;
 				}
 				PreprocessorNumber first = values[i];
@@ -387,7 +387,7 @@ inline PreprocessorNumber Precompiler::EvalutateSequence(TokenCollection aTokens
 				PreprocessorNumber result = precompiler_internal_math::operatorFunctors[opIndex](first, second);
 
 				if (CompilerContext::GetFlag("verbose") == "precompiler_math")
-					std::cout << "did " << Token::TypeToString(op) << " [" << opIndex << "] on " << first << " and " << second << " resulting in " << result << "\n";
+					std::cout << "did " << tokenizer::Token::TypeToString(op) << " [" << opIndex << "] on " << first << " and " << second << " resulting in " << result << "\n";
 
 				values.erase(std::begin(values) + i, std::begin(values) + 2 + i);
 				values.insert(std::begin(values) + i, result);
@@ -422,11 +422,11 @@ inline IteratorType Precompiler::FindMatchingEndParen(IteratorType aBegin, Itera
 	{
 		switch (it->myType)
 		{
-		case Token::Type::L_Paren:
+		case tokenizer::Token::Type::L_Paren:
 			depth++;
 			break;
 
-		case Token::Type::R_Paren:
+		case tokenizer::Token::Type::R_Paren:
 			depth--;
 			break;
 		}
@@ -437,7 +437,7 @@ inline IteratorType Precompiler::FindMatchingEndParen(IteratorType aBegin, Itera
 		if (aBegin != aEnd)
 			CompilerContext::EmitError("Unmatched parenthesis", *(aEnd - 1));
 		else
-			CompilerContext::EmitError("Unmatched parenthesis", CompilerContext::npos);
+			CompilerContext::EmitError("Unmatched parenthesis", CompilerContext::GetCurrentFile(),  CompilerContext::npos);
 	}
 
 	return it;
@@ -447,7 +447,7 @@ inline IteratorType Precompiler::FindMatchingEndParen(IteratorType aBegin, Itera
 template<std::ranges::contiguous_range TokenCollection>
 inline void Precompiler::Define(TokenCollection aTokens)
 {
-	Macro macro(aTokens | token_helpers::IsNotWhitespace);
+	Macro macro(aTokens | tokenizer::token_helpers::IsNotWhitespace);
 	if(macro.myIdentifier.empty())
 		return;
 
@@ -462,7 +462,7 @@ inline Precompiler::Macro::Macro(TokenCollection aRange)
 	
 	if (it == end)
 	{
-		CompilerContext::EmitError("Expected an identifier", CompilerContext::npos);
+		CompilerContext::EmitError("Expected an identifier",  CompilerContext::GetCurrentFile(),  CompilerContext::npos);
 		return;
 	}
 
@@ -483,22 +483,22 @@ inline Precompiler::Macro::Macro(TokenCollection aRange)
 
 	std::vector<std::string_view> arguments;
 
-	if (it->myType == Token::Type::L_Paren)
+	if (it->myType == tokenizer::Token::Type::L_Paren)
 	{
 		it++;
 		while (it != end)
 		{
-			if(it->myType == Token::Type::Ellipsis)
+			if(it->myType == tokenizer::Token::Type::Ellipsis)
 			{
 				myHasVariadic = true;
 				it++;
 				if (it == end)
 				{
-					CompilerContext::EmitError("Expected a ')'", CompilerContext::npos);
+					CompilerContext::EmitError("Expected a ')'", CompilerContext::GetCurrentFile(), CompilerContext::npos);
 					return;
 				}
 
-				if(it->myType != Token::Type::R_Paren)
+				if(it->myType != tokenizer::Token::Type::R_Paren)
 				{
 					CompilerContext::EmitError("Expected a ')'", *it);
 					return;
@@ -516,17 +516,17 @@ inline Precompiler::Macro::Macro(TokenCollection aRange)
 			it++;
 			if (it == end)
 			{
-				CompilerContext::EmitError("Expected a ',' or ')'", CompilerContext::npos);
+				CompilerContext::EmitError("Expected a ',' or ')'", CompilerContext::GetCurrentFile(),  CompilerContext::npos);
 				return;
 			}
 
-			if (it->myType == Token::Type::R_Paren)
+			if (it->myType == tokenizer::Token::Type::R_Paren)
 			{
 				it++;
 				break;
 			}
 
-			if (it->myType != Token::Type::Comma)
+			if (it->myType != tokenizer::Token::Type::Comma)
 			{
 				CompilerContext::EmitError("Expected a ',' or ')'", *it);
 				return;
@@ -608,9 +608,9 @@ inline Precompiler::Macro::Macro(TokenCollection aRange)
 }
 
 template<std::forward_iterator IteratorType>
-inline std::vector<Token> Precompiler::Macro::Evaluate(IteratorType& aInOutBegin, const IteratorType& aEnd)
+inline std::vector<tokenizer::Token> Precompiler::Macro::Evaluate(IteratorType& aInOutBegin, const IteratorType& aEnd)
 {
-	std::vector<Token> out;
+	std::vector<tokenizer::Token> out;
 	
 	if(myArguments != 0 || myHasVariadic)
 	{
@@ -620,7 +620,7 @@ inline std::vector<Token> Precompiler::Macro::Evaluate(IteratorType& aInOutBegin
 			return {};
 		}
 
-		if(aInOutBegin->myType != Token::Type::L_Paren)
+		if(aInOutBegin->myType != tokenizer::Token::Type::L_Paren)
 		{
 			CompilerContext::EmitError("Expected '(' for a function like macro", *aInOutBegin);
 			return {};
@@ -628,19 +628,19 @@ inline std::vector<Token> Precompiler::Macro::Evaluate(IteratorType& aInOutBegin
 		aInOutBegin++;
 	}
 
-	std::vector<std::vector<Token>> arguments;
-	std::vector<Token> variadic;
+	std::vector<std::vector<tokenizer::Token>> arguments;
+	std::vector<tokenizer::Token> variadic;
 
 	arguments.resize(myArguments);
 
 	bool parenClosed = false;
 	for(size_t i = 0; i < myArguments; i++)
 	{
-		std::vector<Token> arg;
+		std::vector<tokenizer::Token> arg;
 		size_t depth = 0;
 		while (aInOutBegin != aEnd)
 		{
-			if(aInOutBegin->myType == Token::Type::R_Paren)
+			if(aInOutBegin->myType == tokenizer::Token::Type::R_Paren)
 			{
 				if(depth > 0)
 				{
@@ -660,7 +660,7 @@ inline std::vector<Token> Precompiler::Macro::Evaluate(IteratorType& aInOutBegin
 				return {};
 			}
 
-			if(aInOutBegin->myType == Token::Type::L_Paren)
+			if(aInOutBegin->myType == tokenizer::Token::Type::L_Paren)
 			{
 				depth++;
 				aInOutBegin++;
@@ -669,7 +669,7 @@ inline std::vector<Token> Precompiler::Macro::Evaluate(IteratorType& aInOutBegin
 
 			if (depth == 0)
 			{
-				if(aInOutBegin->myType == Token::Type::Comma)
+				if(aInOutBegin->myType == tokenizer::Token::Type::Comma)
 				{
 					aInOutBegin++;
 					break;
@@ -686,10 +686,10 @@ inline std::vector<Token> Precompiler::Macro::Evaluate(IteratorType& aInOutBegin
 		size_t depth = 0;
 		while (aInOutBegin != aEnd)
 		{
-			if(aInOutBegin->myType == Token::Type::L_Paren)
+			if(aInOutBegin->myType == tokenizer::Token::Type::L_Paren)
 				depth++;
 
-			if(aInOutBegin->myType == Token::Type::R_Paren)
+			if(aInOutBegin->myType == tokenizer::Token::Type::R_Paren)
 			{
 				if(depth == 0)
 				{
@@ -711,7 +711,7 @@ inline std::vector<Token> Precompiler::Macro::Evaluate(IteratorType& aInOutBegin
 		{
 		case Component::Type::Argument:
 			{
-				std::vector<Token>& arg = arguments[comp.myArgumentIndex];
+				std::vector<tokenizer::Token>& arg = arguments[comp.myArgumentIndex];
 				out.insert(std::end(out), std::begin(arg), std::end(arg));
 			}
 			break;

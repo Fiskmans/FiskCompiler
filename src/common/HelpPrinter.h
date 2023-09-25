@@ -2,6 +2,7 @@
 #define COMMON_HELP_PRINTER_H
 
 #include <unordered_map>
+#include <string_view>
 
 class HelpPrinter
 {

@@ -6,6 +6,7 @@
 #include "common/HelpPrinter.h"
 
 #include "tokenizer/tokenizer.h"
+#include "markup/Patterns.h"
 #include "main.h"
 
 
@@ -34,7 +35,7 @@ std::optional<std::ofstream> GetArtifactsFile(std::filesystem::path aPath, std::
 	return {};
 }
 
-void DumpTokens(std::vector<Token>& tokens, std::filesystem::path aPath)
+void DumpTokens(std::vector<tokenizer::Token>& tokens, std::filesystem::path aPath)
 {
 	std::string line;
 	std::string annotation;
@@ -52,20 +53,20 @@ void DumpTokens(std::vector<Token>& tokens, std::filesystem::path aPath)
 		}
 		else
 		{
-			CompilerContext::EmitError("Failed to create file to write token output to for: " + aPath.string(), 0, 0);
+			CompilerContext::EmitError("Failed to create file to write token output to", aPath);
 			return;
 		}
 	}
 
 
-	for (Token& tok : tokens)
+	for (tokenizer::Token& tok : tokens)
 	{
 		while (annotation.length() > line.length()) { line += ' '; }
 		while (line.length() > annotation.length()) { annotation += ' '; }
 		line += Escape(tok.myRawText);
-		annotation += "[" + Token::TypeToString(tok.myType) + "]";
+		annotation += "[" + tokenizer::Token::TypeToString(tok.myType) + "]";
 
-		if (tok.myType == Token::Type::NewLine || line.length() > columnLimit)
+		if (tok.myType == tokenizer::Token::Type::NewLine || line.length() > columnLimit)
 		{
 			*out << line << "\n" << annotation << "\n\n";
 			line = "";
@@ -73,6 +74,29 @@ void DumpTokens(std::vector<Token>& tokens, std::filesystem::path aPath)
 		}
 	}
 	*out << line << "\n" << annotation << "\n\n";
+}
+
+void DumpMarkup(const markup::TranslationUnit& aMarkup, std::filesystem::path aPath)
+{
+	std::ostream* out = &std::cout;
+	std::ofstream file;
+	size_t columnLimit = 120;
+
+	if (std::optional<std::ofstream> dumpFile = GetArtifactsFile(aPath, ".markup"))
+	{
+		if (*dumpFile)
+		{
+			file = std::move(*dumpFile);
+			out = &file;
+		}
+		else
+		{
+			CompilerContext::EmitError("Failed to create file to write markup output to", aPath);
+			return;
+		}
+	}
+
+	*out << aMarkup;
 }
 
 void printHelp()
@@ -94,9 +118,17 @@ int main(int argc, char** argv)
 
 	for (std::filesystem::path file : files)
 	{
-		std::vector<Token> tokens = Tokenize(file);
+		CompilerContext::PushFile(file);
+
+		std::vector<tokenizer::Token> tokens = tokenizer::Tokenize(file);
 
 		if (CompilerContext::GetFlag("dump") == "tokens") DumpTokens(tokens, file);
+
+		markup::TranslationUnit translationUnit = markup::Markup(tokens);
+
+		if (CompilerContext::GetFlag("dump") == "markup") DumpMarkup(translationUnit, file);
+
+		CompilerContext::PopFile();
 	}
 
 	return CompilerContext::HasErrors() ? EXIT_FAILURE : EXIT_SUCCESS;

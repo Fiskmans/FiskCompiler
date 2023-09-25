@@ -5,16 +5,19 @@
 
 #include "tokenizer/token.h"
 
-class TokenStream
+namespace tokenizer
 {
-public:
-	std::vector<Token>& Get() &&;
+	class TokenStream
+	{
+	public:
+		std::vector<Token>& Get() &&;
 
-	TokenStream&	operator<<(const Token& aToken);
-	TokenStream&	operator<<(const std::vector<Token>& aTokens);
+		TokenStream&	operator<<(const Token& aToken);
+		TokenStream&	operator<<(const std::vector<Token>& aTokens);
 
-private:
-	std::vector<Token> myTokens;
-};
+	private:
+		std::vector<Token> myTokens;
+	};
+}
 
 #endif // TOKENIZER_TOKENSTREAM_H

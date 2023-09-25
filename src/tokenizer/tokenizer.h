@@ -7,6 +7,9 @@
 
 #include "tokenizer/token.h"
 
-std::vector<Token> Tokenize(const std::filesystem::path& aFilePath);
+namespace tokenizer
+{
+	std::vector<Token> Tokenize(const std::filesystem::path& aFilePath);
+}
 
 #endif

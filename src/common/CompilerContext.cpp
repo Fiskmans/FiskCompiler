@@ -59,12 +59,12 @@ std::string Dequote(std::string aString)
 }
 
 
-void CompilerContext::EmitWarning(const std::string& aMessage, const Token& aToken)
+void CompilerContext::EmitWarning(const std::string& aMessage, const tokenizer::Token& aToken)
 {
-	EmitWarning(aMessage, aToken.myColumn, aToken.myLine, aToken.myRawText.length());
+	EmitWarning(aMessage, aToken.myFile, aToken.myColumn, aToken.myLine, aToken.myRawText.length());
 }
 
-void CompilerContext::EmitWarning(const std::string& aMessage, size_t aColumn, size_t aLine, size_t aSize)
+void CompilerContext::EmitWarning(const std::string& aMessage,std::filesystem::path aFile, size_t aColumn, size_t aLine, size_t aSize)
 {
 
 #if _WIN32
@@ -88,7 +88,7 @@ void CompilerContext::EmitWarning(const std::string& aMessage, size_t aColumn, s
 		 return;
 #endif
 
-	std::cout << " " << aMessage <<  " [in file " << myFileStack.top() << ":" << aLine << ":" ;
+	std::cout << " " << aMessage <<  " [in file " << aFile.string() << ":" << aLine << ":" ;
 
 	if (aColumn == npos)
 	{
@@ -144,12 +144,12 @@ void CompilerContext::EmitWarning(const std::string& aMessage, size_t aColumn, s
 	}
 }
 
-void CompilerContext::EmitError(const std::string& aMessage, const Token& aToken)
+void CompilerContext::EmitError(const std::string& aMessage, const tokenizer::Token& aToken)
 {
-	EmitError(aMessage, aToken.myColumn, aToken.myLine, aToken.myRawText.length());
+	EmitError(aMessage, aToken.myFile, aToken.myColumn, aToken.myLine, aToken.myRawText.length());
 }
 
-void CompilerContext::EmitError(const std::string& aMessage, size_t aColumn, size_t aLine, size_t aSize)
+void CompilerContext::EmitError(const std::string& aMessage, std::filesystem::path aFile, size_t aColumn, size_t aLine, size_t aSize)
 {
 	myHasErrors = true;
 	
@@ -173,7 +173,7 @@ void CompilerContext::EmitError(const std::string& aMessage, size_t aColumn, siz
 	if(!SetConsoleTextAttribute(hConsole, screenBufferInfo.wAttributes))
 		 return;
 #endif
-	std::cout << " " << aMessage << " [in file " << myFileStack.top() << ":" << aLine << ":";
+	std::cout << " " << aMessage << " [in file " << aFile.string() << ":" << aLine << ":";
 	
 	if (aColumn == npos)
 	{
@@ -290,6 +290,13 @@ void CompilerContext::PopFile()
 	myFileStack.pop();
 	SetPrintContext(myPrintContextStack.top());
 	myPrintContextStack.pop();
+}
+
+std::filesystem::path CompilerContext::GetCurrentFile()
+{
+	if (myFileStack.empty())
+		return "/none";
+	return myFileStack.top();
 }
 
 bool MatchesPattern(std::string aFilePath, std::string aPattern)

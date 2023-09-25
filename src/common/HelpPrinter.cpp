@@ -24,7 +24,7 @@ void HelpPrinter::Emit()
 			tag = *commandLine;
 	}
 
-	if(tag != "")
+	if(!tag.empty())
 	{
 		decltype(mySections)::iterator foundSection = mySections.find(tag);
 		if(foundSection == mySections.end())
@@ -78,7 +78,7 @@ void HelpPrinter::Setup()
 	{
 		while (std::getline(helpFile, line))
 		{
-			if(line == "")
+			if(line.empty())
 				continue;
 		
 			if (line[0] == '#') 
@@ -92,7 +92,7 @@ void HelpPrinter::Setup()
 			}
 
 			Section section(line);
-			if(section.myTag != "")
+			if(!section.myTag.empty())
 			{
 				myHeaderAlignment.Update(section.myHeader.length());
 				myTagAlignment.Update(section.myTag.length());
