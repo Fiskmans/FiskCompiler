@@ -3,5 +3,4 @@
 
 namespace markup 
 {
-	std::stack<MarkupState> MarkupGlobals::StateStack;
 }

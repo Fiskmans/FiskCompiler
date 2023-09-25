@@ -7,6 +7,8 @@
 #include <iostream>
 #include <variant>
 
+alignas(throw);
+
 namespace markup 
 {
 	inline std::string Demangle(std::string aClassName)
@@ -38,93 +40,76 @@ namespace markup
 
 	struct Token
 	{
-		Token(tokenizer::Token::Type aType)
-		{
-			if (MarkupGlobals::StateStack.top().GetToken().myType != aType)
-			{
-				MarkupGlobals::StateStack.top().Error("Invalid token, expected: " + tokenizer::Token::TypeToString(aType));
-				return;
-			}
-
-			myToken = &MarkupGlobals::StateStack.top().GetToken();
-			MarkupGlobals::StateStack.top().Consume();
-		}
-
 		const tokenizer::Token* myToken;
 	};
 
 	struct BlockDeclaration
 	{
-		BlockDeclaration()
-		{
-			MarkupGlobals::StateStack.top().Error("Not yet implemented");
-		}
 	};
 
 	struct FunctionDeclaration
 	{
-		FunctionDeclaration()
-		{
-			MarkupGlobals::StateStack.top().Error("Not yet implemented");
-		}
 	};
 
 	struct TemplateDeclaration
 	{
-		TemplateDeclaration()
-		{
-			MarkupGlobals::StateStack.top().Error("Not yet implemented");
-		}
 	};
 
 	struct ExplicitInstantiation
 	{
-		ExplicitInstantiation()
-		{
-			MarkupGlobals::StateStack.top().Error("Not yet implemented");
-		}
 	};
 
 	struct ExplicitSpecialization
 	{
-		ExplicitSpecialization()
-		{
-			MarkupGlobals::StateStack.top().Error("Not yet implemented");
-		}
 	};
 
 	struct LinkageSpecification
 	{
-		LinkageSpecification()
-		{
-			MarkupGlobals::StateStack.top().Error("Not yet implemented");
-		}
 	};
 
 	struct NamespaceDefinition
 	{
-		NamespaceDefinition()
-		{
-			MarkupGlobals::StateStack.top().Error("Not yet implemented");
-		}
 	};
 
 	struct EmptyDeclaration
 	{
-		Token mySemicolon = tokenizer::Token::Type::Semicolon;
+		const tokenizer::Token* mySemicolon;
+	};
+
+	struct Attribute
+	{
+
+	};
+
+	struct AttributeList
+	{
+		std::vector<Attribute> myAttributes;
+
+		const tokenizer::Token* myEllipsis;
+	};
+
+	struct AttributeSpecifier
+	{
+		bool isAlingas = false;
+
+		const tokenizer::Token* myOuterOpening;
+		const tokenizer::Token* myInnerOpening;
+		AttributeList myAttributeList;
+		const tokenizer::Token* myInnerClosing;
+		const tokenizer::Token* myOuterClosing;
+
+		asdas
 	};
 
 	struct AttributeDeclaration
 	{
-		AttributeDeclaration()
-		{
-			MarkupGlobals::StateStack.top().Error("Not yet implemented");
-		}
+		std::vector<AttributeSpecifier> mySpecifiers;
+		const tokenizer::Token* mySemicolon;
 	};
 
-	struct Declaration
+	struct TranslationUnit
 	{
-		std::optional<std::variant<
+		std::vector<std::variant<
 			BlockDeclaration,
 			FunctionDeclaration,
 			TemplateDeclaration,
@@ -133,27 +118,13 @@ namespace markup
 			LinkageSpecification,
 			NamespaceDefinition,
 			EmptyDeclaration,
-			AttributeDeclaration>>	myDeclaration = AnyOf<	BlockDeclaration,
-															FunctionDeclaration,
-															TemplateDeclaration,
-															ExplicitInstantiation,
-															ExplicitSpecialization,
-															LinkageSpecification,
-															NamespaceDefinition,
-															EmptyDeclaration,
-															AttributeDeclaration>();
-	};
-
-	struct TranslationUnit
-	{
-		std::vector<Declaration> myDeclarations = UnseperatedSequence<Declaration>();
+			AttributeDeclaration>> myDeclarations;
 	};
 
 	TranslationUnit Markup(const std::vector<tokenizer::Token>& aTokens);
 	
 
 	void operator<<(std::ostream& aStream, const TranslationUnit& aTranslationUnit);
-	void operator<<(std::ostream& aStream, const Declaration& aDeclaration);
 	void operator<<(std::ostream& aStream, const BlockDeclaration& aDeclaration);
 	void operator<<(std::ostream& aStream, const FunctionDeclaration& aDeclaration);
 	void operator<<(std::ostream& aStream, const TemplateDeclaration& aDeclaration);
