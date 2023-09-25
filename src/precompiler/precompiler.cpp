@@ -293,12 +293,16 @@ inline std::vector<tokenizer::Token> Precompiler::TranslateTokenRange(TokenColle
 		if (potentialMacro != std::end(myContext.myMacros))
 		{
 			it++;
-			stream << potentialMacro->second.Evaluate(it, end);
-			continue;
+			if (std::optional<std::vector<Token>> result = potentialMacro->second.Evaluate(it, end))
+			{
+				stream << *result;
+				continue;
+			}
 		}
 
 		if (!tok.IsPrepoccessorSpecific())
 			stream << tok;
+
 		it++;
 	}
 
@@ -608,23 +612,18 @@ inline Precompiler::Macro::Macro(TokenCollection aRange)
 }
 
 template<std::forward_iterator IteratorType>
-inline std::vector<tokenizer::Token> Precompiler::Macro::Evaluate(IteratorType& aInOutBegin, const IteratorType& aEnd)
+inline std::optional<std::vector<tokenizer::Token>> Precompiler::Macro::Evaluate(IteratorType& aInOutBegin, const IteratorType& aEnd)
 {
 	std::vector<tokenizer::Token> out;
 	
 	if(myArguments != 0 || myHasVariadic)
 	{
 		if(aInOutBegin == aEnd)
-		{
-			CompilerContext::EmitError("Expected '(' for a function like macro");
 			return {};
-		}
 
-		if(aInOutBegin->myType != tokenizer::Token::Type::L_Paren)
-		{
-			CompilerContext::EmitError("Expected '(' for a function like macro", *aInOutBegin);
+		if(aInOutBegin->myType != Token::Type::L_Paren)
 			return {};
-		}
+
 		aInOutBegin++;
 	}
 

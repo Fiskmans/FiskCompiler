@@ -41,7 +41,7 @@ private:
 		Macro(TokenCollection aRange);
 
 		template<std::forward_iterator IteratorType>
-		std::vector<tokenizer::Token> Evaluate(IteratorType& aInOutBegin, const IteratorType& aEnd);
+		std::optional<std::vector<tokenizer::Token>> Evaluate(IteratorType& aInOutBegin, const IteratorType& aEnd);
 
 		struct Component
 		{
