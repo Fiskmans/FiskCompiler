@@ -7,8 +7,6 @@
 #include <iostream>
 #include <variant>
 
-alignas(throw);
-
 namespace markup 
 {
 	inline std::string Demangle(std::string aClassName)
@@ -73,38 +71,70 @@ namespace markup
 
 	struct EmptyDeclaration
 	{
-		const tokenizer::Token* mySemicolon;
+		const tokenizer::Token* mySemicolon = nullptr;
+	};
+
+	struct AttributeArgumentClause
+	{
+		const tokenizer::Token* myOpeningParenthesis = nullptr;
+
+		std::vector<const tokenizer::Token*> myBalancedTokenSequence;
+
+		const tokenizer::Token* myClosingParenthesis = nullptr;
 	};
 
 	struct Attribute
 	{
+		const tokenizer::Token* myAttributeNamespace = nullptr;
+		
+		const tokenizer::Token* myColonColon = nullptr;
 
+		const tokenizer::Token* myIdentifier = nullptr;
+
+		std::optional<AttributeArgumentClause> myArgumentClause;
 	};
 
 	struct AttributeList
 	{
 		std::vector<Attribute> myAttributes;
 
-		const tokenizer::Token* myEllipsis;
+		const tokenizer::Token* myEllipsis = nullptr;
 	};
 
+	struct TypeId
+	{
+	};
+
+	struct AssignmentExpression
+	{
+	
+	};
+
+	struct AlignmentSpecifier
+	{
+		const tokenizer::Token* myAlignas = nullptr;
+		const tokenizer::Token* myOpeningParen = nullptr;
+
+		std::variant<TypeId, AssignmentExpression> myContent; 
+
+		const tokenizer::Token* myEllipsis = nullptr;
+		const tokenizer::Token* myClosingParen = nullptr;
+	};
+
+	
 	struct AttributeSpecifier
 	{
-		bool isAlingas = false;
-
-		const tokenizer::Token* myOuterOpening;
-		const tokenizer::Token* myInnerOpening;
+		const tokenizer::Token* myOuterOpening = nullptr;
+		const tokenizer::Token* myInnerOpening = nullptr;
 		AttributeList myAttributeList;
-		const tokenizer::Token* myInnerClosing;
-		const tokenizer::Token* myOuterClosing;
-
-		asdas
+		const tokenizer::Token* myInnerClosing = nullptr;
+		const tokenizer::Token* myOuterClosing = nullptr;
 	};
 
 	struct AttributeDeclaration
 	{
-		std::vector<AttributeSpecifier> mySpecifiers;
-		const tokenizer::Token* mySemicolon;
+		std::vector<std::variant<AttributeSpecifier, AlignmentSpecifier>> mySpecifiers;
+		const tokenizer::Token* mySemicolon = nullptr;
 	};
 
 	struct TranslationUnit

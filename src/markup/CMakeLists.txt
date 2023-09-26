@@ -1,6 +1,7 @@
 
 list(APPEND SOURCE_FILES Pattern.h Pattern.cpp)
 list(APPEND SOURCE_FILES Patterns.h Patterns.cpp)
+list(APPEND SOURCE_FILES Concepts.h)
 
 add_library(markup "${SOURCE_FILES}")
 

@@ -1,5 +1,6 @@
 
 #include "markup/Patterns.h"
+#include "markup/Concepts.h"
 
 namespace markup 
 {
@@ -18,7 +19,7 @@ namespace markup
 			return myBegin == myEnd;
 		}
 
-		const tokenizer::Token& Token()
+		const const const const tokenizer::Token& Token()
 		{
 			if (Empty())
 			{
@@ -28,15 +29,27 @@ namespace markup
 			return *myBegin;
 		}
 
-		void Consume()
+		tokenizer::Token::Type
+		TokenType()
 		{
 			if (Empty())
 			{
 				CompilerContext::EmitError("Unexpected eof");
-				return;
+				return tokenizer::Token::Type::Invalid;
 			}
+			return myBegin->myType;
+		}
+
+		const tokenizer::Token& Consume()
+		{
+			if (Empty())
+			{
+				CompilerContext::EmitError("Unexpected eof");
+				return tokenizer::Token::SafetyToken;
+			}
+			iterator out = myBegin;
 			myBegin++;
-			return;
+			return *out;
 		}
 
 	private:
@@ -46,56 +59,252 @@ namespace markup
 
 	size_t indent = 0;
 
-	template<class T>
+	template<AssingableBy<BlockDeclaration> T>
 	bool ParseBlockDeclaration(TokenStream& aStream, T& aOut)
 	{
 		// TODO
 		return false;
 	}
-	template<class T>
+	template<AssingableBy<FunctionDeclaration> T>
 	bool ParseFunctionDeclaration(TokenStream& aStream, T& aOut)
 	{
 		// TODO
 		return false;
 	}
-	template<class T>
+	template<AssingableBy<TemplateDeclaration> T>
 	bool ParseTemplateDeclaration(TokenStream& aStream, T& aOut)
 	{
 		// TODO
 		return false;
 	}
-	template<class T>
+	template<AssingableBy<ExplicitInstantiation> T>
 	bool ParseExplicitInstantiation(TokenStream& aStream, T& aOut)
 	{
 		// TODO
 		return false;
 	}
-	template<class T>
+	template<AssingableBy<LinkageSpecification> T>
 	bool ParseLinkageSpecification(TokenStream& aStream, T& aOut)
 	{
 		// TODO
 		return false;
 	}
-	template<class T>
+	template<AssingableBy<NamespaceDefinition> T>
 	bool ParseNamespaceDefinition(TokenStream& aStream, T& aOut)
 	{
 		// TODO
 		return false;
 	}
-	template<class T>
+	template<AssingableBy<EmptyDeclaration> T>
 	bool ParseEmptyDeclaration(TokenStream& aStream, T& aOut)
 	{
-		if (aStream.Token().myType != tokenizer::Token::Type::Semicolon)
+		if (aStream.TokenType() != tokenizer::Token::Type::Semicolon)
 			return false;
 
 		EmptyDeclaration temp;
-		temp.mySemicolon = &aStream.Token();
-		aStream.Consume();
+		temp.mySemicolon = &aStream.Consume();
 
 		aOut = temp;
 		return true;
 	}
-	template<class T>
+
+	template<AssingableBy<AttributeArgumentClause> T>
+	bool ParseAttributeArgumentClause(TokenStream& aStream, T& aOut)
+	{
+		TokenStream stream(aStream);
+
+		AttributeArgumentClause clause;
+
+		if (stream.TokenType() != tokenizer::Token::Type::L_Paren)
+			return false;
+
+		clause.myOpeningParenthesis = &stream.Consume();
+
+		if (stream.TokenType() == tokenizer::Token::Type::R_Paren)
+			return false;
+
+		std::stack<tokenizer::Token::Type> closers;
+		closers.push(tokenizer::Token::Type::R_Paren);
+
+		while (!closers.empty())
+		{
+			switch (stream.TokenType())
+			{
+				case tokenizer::Token::Type::L_Paren:
+					closers.push(tokenizer::Token::Type::R_Paren);
+					break;
+				case tokenizer::Token::Type::L_Bracket:
+					closers.push(tokenizer::Token::Type::R_Bracket);
+					break;
+				case tokenizer::Token::Type::L_Brace:
+					closers.push(tokenizer::Token::Type::R_Brace);
+					break;
+				case tokenizer::Token::Type::R_Paren:
+				case tokenizer::Token::Type::R_Bracket:
+				case tokenizer::Token::Type::R_Brace:
+					if (closers.top() != stream.TokenType())
+						return false;
+					closers.pop();
+					break;
+			}
+
+			if (!closers.empty())
+				clause.myBalancedTokenSequence.push_back(&stream.Consume());
+		}
+
+		clause.myClosingParenthesis = &stream.Consume();
+
+		aOut = clause;
+		aStream = stream;
+
+		return true;
+
+	}
+
+	bool ParseAttribute(TokenStream& aStream, Attribute& aOut)
+	{
+		TokenStream stream(aStream);
+
+		if (stream.TokenType() != tokenizer::Token::Type::Identifier)
+			return false;
+
+		const tokenizer::Token* firstIdentifier = &stream.Consume();
+
+		if (stream.TokenType() == tokenizer::Token::Type::Colon_colon)
+		{
+			aOut.myAttributeNamespace = firstIdentifier;
+			aOut.myColonColon = &stream.Consume();
+			if (stream.TokenType() != tokenizer::Token::Type::Identifier)
+				return false;
+
+			aOut.myIdentifier = &stream.Consume();
+		}
+		else
+		{
+			aOut.myIdentifier = firstIdentifier;
+		}
+
+		ParseAttributeArgumentClause(stream, aOut.myArgumentClause);
+
+		aStream = stream;
+
+		return false;
+	}
+
+
+	bool ParseAttributeList(TokenStream& aStream, AttributeList& aOut)
+	{
+		TokenStream stream(aStream);
+
+		while (true)
+		{
+			if (stream.TokenType() == tokenizer::Token::Type::Ellipsis)
+			{
+				if (aOut.myAttributes.empty())
+					return false;
+
+				aOut.myEllipsis = &stream.Token();
+				stream.Consume();
+				break;
+			}
+
+			Attribute attr;
+
+			if (!ParseAttribute(stream, attr))
+				break;
+
+			aOut.myAttributes.push_back(attr);
+		}
+
+		aStream = stream;
+
+		return true;
+	}
+
+	template<AssingableBy<TypeId> T>
+	bool ParseTypeId(TokenStream& aStream, T& aOut)
+	{
+		// TODO
+		return false;
+	}
+
+	template<AssingableBy<AssignmentExpression> T>
+	bool ParseAssignmentExpression(TokenStream& aStream, T& aOut)
+	{
+		// TODO
+		return false;
+	}
+
+	bool ParseAttributeSpecifier(TokenStream& aStream, std::variant<AttributeSpecifier, AlignmentSpecifier>& aOut)
+	{
+		TokenStream stream(aStream);
+
+		if (stream.TokenType() == tokenizer::Token::Type::L_Bracket)
+		{
+			AttributeSpecifier attr;
+
+			attr.myOuterOpening = &stream.Consume();
+
+			if (stream.TokenType() != tokenizer::Token::Type::L_Bracket)
+				return false;
+
+			attr.myInnerOpening = &stream.Consume();
+
+			if (!ParseAttributeList(stream, attr.myAttributeList))
+				return false;
+
+			if (stream.TokenType() != tokenizer::Token::Type::R_Bracket)
+				return false;
+
+			attr.myInnerClosing = &stream.Consume();
+
+			if (stream.TokenType() != tokenizer::Token::Type::R_Bracket)
+				return false;
+
+			attr.myOuterClosing = &stream.Consume();
+
+			aOut = attr;
+			aStream = stream;
+
+			return true;
+		}
+
+		if (stream.TokenType() == tokenizer::Token::Type::kw_alignas)
+		{
+			AlignmentSpecifier align;
+
+			align.myAlignas = &stream.Consume();
+
+			if (stream.TokenType() != tokenizer::Token::Type::L_Paren)
+				return false;
+
+			align.myOpeningParen = &stream.Consume();
+
+			if (!ParseTypeId(stream, align.myContent))
+				if (!ParseAssignmentExpression(stream, align.myContent))
+					return false;
+
+			if (stream.TokenType() == tokenizer::Token::Type::Ellipsis)
+			{
+				align.myEllipsis = &stream.Token();
+				stream.Consume();
+			}
+
+			if (stream.TokenType() != tokenizer::Token::Type::R_Paren)
+				return false;
+
+			align.myOpeningParen = &stream.Consume();
+			
+			aOut = align;
+			aStream = stream;
+
+			return true;
+		}
+
+		return false;
+	}
+
+	template<AssingableBy<AttributeDeclaration> T>
 	bool ParseAttributeDeclaration(TokenStream& aStream, T& aOut)
 	{
 		TokenStream stream(aStream);
@@ -104,18 +313,19 @@ namespace markup
 
 		do
 		{
-			if (stream.Token().myType != tokenizer::Token::Type::L_Bracket)
+			std::variant<AttributeSpecifier, AlignmentSpecifier> attributeSpecifier;
+
+			if (!ParseAttributeSpecifier(stream, attributeSpecifier))
 				return false;
 
+			decl.mySpecifiers.push_back(attributeSpecifier);
 
-
-
-
-		} while (stream.Token().myType != tokenizer::Token::Type::Semicolon);
+		} while (stream.TokenType() != tokenizer::Token::Type::Semicolon);
 
 		decl.mySemicolon = &stream.Token();
 		stream.Consume();
 
+		aOut = decl;
 		aStream = stream;
 
 		return true;
