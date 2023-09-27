@@ -19,7 +19,7 @@ namespace markup
 			return myBegin == myEnd;
 		}
 
-		const const const const tokenizer::Token& Token()
+		const tokenizer::Token& Token()
 		{
 			if (Empty())
 			{
@@ -188,7 +188,7 @@ namespace markup
 
 		aStream = stream;
 
-		return false;
+		return true;
 	}
 
 
@@ -208,12 +208,20 @@ namespace markup
 				break;
 			}
 
+			if (stream.TokenType() != tokenizer::Token::Type::Identifier)
+				break;
+
 			Attribute attr;
 
 			if (!ParseAttribute(stream, attr))
-				break;
+				return false;
 
 			aOut.myAttributes.push_back(attr);
+
+			if (stream.TokenType() != tokenizer::Token::Type::Comma)
+				break;
+
+			stream.Consume();
 		}
 
 		aStream = stream;
@@ -221,11 +229,177 @@ namespace markup
 		return true;
 	}
 
-	template<AssingableBy<TypeId> T>
-	bool ParseTypeId(TokenStream& aStream, T& aOut)
+	bool ParseDeclTypeSpecifier(TokenStream& aStream, DecltypeSpecifier& aOut)
 	{
 		// TODO
 		return false;
+	}
+
+	template<AssingableBy<NestedNameSpecifier> T>
+	bool ParseNestedNameSpecifier(TokenStream& aStream, T& aOut)
+	{
+		// TODO
+		return false;
+	}
+
+	bool ParseSimpleTamplateId(TokenStream& aStream, SimpleTemplateId& aOut)
+	{
+		// TODO
+		return false;
+	}
+
+	bool ParseTypename(TokenStream& aStream, Typename& aOut)
+	{
+		TokenStream stream(aStream);
+		SimpleTemplateId templateId;
+
+		if (stream.TokenType() != tokenizer::Token::Type::Identifier)
+			return false;
+
+		if (ParseSimpleTamplateId(stream, templateId))
+		{
+			aOut = templateId;
+			aStream = stream;
+			return true;
+		}
+
+		aOut = &stream.Consume();
+		aStream = stream;
+
+		return true;
+	}
+
+	template<AssingableBy<SimpleTypeSpecifier> T>
+	bool ParseSimpleTypeSpecifier(TokenStream& aStream, T& aOut)
+	{
+		TokenStream stream(aStream);
+		SimpleTypeSpecifier simpleTypeSpecifier;
+		switch (stream.TokenType())
+		{
+			case tokenizer::Token::Type::kw_char:
+			case tokenizer::Token::Type::kw_char16_t:
+			case tokenizer::Token::Type::kw_char32_t:
+			case tokenizer::Token::Type::kw_wchar_t:
+			case tokenizer::Token::Type::kw_bool:
+			case tokenizer::Token::Type::kw_short:
+			case tokenizer::Token::Type::kw_int:
+			case tokenizer::Token::Type::kw_long:
+			case tokenizer::Token::Type::kw_signed:
+			case tokenizer::Token::Type::kw_unsigned:
+			case tokenizer::Token::Type::kw_float:
+			case tokenizer::Token::Type::kw_double:
+			case tokenizer::Token::Type::kw_void:
+			case tokenizer::Token::Type::kw_auto:
+			{
+				SimpleTypeSpecifier_Builtin builtin;
+				builtin.myType = &stream.Consume();
+
+				simpleTypeSpecifier = builtin;
+				aOut = simpleTypeSpecifier;
+				aStream = stream;
+				return true;
+			} 
+			case tokenizer::Token::Type::kw_decltype:
+			{
+				DecltypeSpecifier declType;
+				if (!ParseDeclTypeSpecifier(stream, declType))
+					return false;
+				
+				simpleTypeSpecifier = declType;
+				aOut = simpleTypeSpecifier;
+				aStream = stream;
+				return true;
+			}
+		}
+
+		const tokenizer::Token* colonColon = nullptr;
+
+		if (stream.TokenType() == tokenizer::Token::Type::Colon_colon)
+			colonColon = &stream.Consume();
+
+		std::optional<NestedNameSpecifier> nestedNameSpecifer;
+
+		ParseNestedNameSpecifier(stream, nestedNameSpecifer);
+
+		if (stream.TokenType() == tokenizer::Token::Type::kw_template)
+		{
+			if (!nestedNameSpecifer)
+				return false;
+
+			SimpleTypeSpecifier_TemplateTypename templatedTypename;
+
+			templatedTypename.myColonColon = colonColon;
+			templatedTypename.myNameSpecifier = *nestedNameSpecifer;
+
+			if (!ParseSimpleTamplateId(stream, templatedTypename.mySimpleTemplateId))
+				return false;
+
+			simpleTypeSpecifier = templatedTypename;
+			aOut = simpleTypeSpecifier;
+			aStream = stream;
+
+			return true;
+		}
+
+		SimpleTypeSpecifier_Typename typeName;
+		typeName.myColonColon = colonColon;
+		typeName.myNameSpecifier = nestedNameSpecifer;
+
+		if (!ParseTypename(stream, typeName.myTypename))
+			return false;
+
+		simpleTypeSpecifier = typeName;
+		aOut = simpleTypeSpecifier;
+		aStream = stream;
+
+		return true;
+	}
+
+	bool ParseTypeSpecifier(TokenStream& aStream, TypeSpecifier& aOut)
+	{
+		TokenStream stream(aStream);
+		if (ParseSimpleTypeSpecifier(stream, aOut))
+		{
+			aStream = stream;
+			return true;
+		}
+
+		// TODO
+		return false;
+	}
+
+	template<AssingableBy<AbstractDeclarator> T>
+	bool ParseAbstractDeclarator(TokenStream& aStream, T& aOut)
+	{
+		// TODO
+		return false;
+	}
+
+	template<AssingableBy<TypeId> T>
+	bool ParseTypeId(TokenStream& aStream, T& aOut)
+	{
+		TokenStream stream(aStream);
+		TypeId typeId;
+
+		typeId.myTypeSpecifierSequence = std::make_shared<TypeSpecifierSequence>();
+
+		while (true)
+		{
+			TypeSpecifier typeSpecifier;
+			if (!ParseTypeSpecifier(stream, typeSpecifier))
+				break;
+
+			typeId.myTypeSpecifierSequence->myTypeSpecifiers.push_back(typeSpecifier);
+		}
+
+		AbstractDeclarator declarator;
+		if (ParseAbstractDeclarator(stream, declarator))
+			typeId.myAbstractDeclarator = std::make_shared<AbstractDeclarator>(declarator);
+
+		aStream = stream;
+		aOut = typeId;
+
+		return true;
 	}
 
 	template<AssingableBy<AssignmentExpression> T>
@@ -408,6 +582,15 @@ namespace markup
 
 		return unit;
 	}
+	
+	void operator<<(std::ostream& aStream, std::initializer_list<const tokenizer::Token*> aTokens)
+	{
+		for (const tokenizer::Token* tok : aTokens)
+		{
+			if (tok)
+				aStream << tok->myRawText << " ";
+		}
+	}
 
 	void operator<<(std::ostream& aStream, const TranslationUnit& aTranslationUnit)
 	{
@@ -496,10 +679,256 @@ namespace markup
 	{
 		aStream  << NewLine() << "EmptyDeclaration";
 	}
+	
+	void operator<<(std::ostream& aStream, const Attribute& aAttribute)
+	{
+		aStream << NewLine() << Tokens("", aAttribute.myAttributeNamespace, aAttribute.myColonColon, aAttribute.myIdentifier);
+		if (aAttribute.myArgumentClause)
+		{
+			aStream << "("; 
+			bool first = true;
+			for (const tokenizer::Token* tok : aAttribute.myArgumentClause->myBalancedTokenSequence)
+			{
+				if(!first) aStream << " ";
+				first = false;
+				aStream << tok->myRawText;
+			}
+			aStream << ")";
+		}
+	}
 
 	void operator<<(std::ostream& aStream, const AttributeDeclaration& aDeclaration)
 	{
-		aStream  << NewLine() << "AttributeDeclaration";
+		aStream << NewLine() << "AttributeDeclaration";
+		aStream << NewLine() << "{";
+		indent++;
+
+		aStream << aDeclaration.mySpecifiers;
+
+		indent--;
+		aStream << NewLine() << "}";
+	}
+	
+	void operator<<(std::ostream& aStream, const TypeId& aTypeId)
+	{
+		aStream << NewLine() << "Type";
+		aStream << NewLine() << "{";
+		indent++;
+
+		aStream << *aTypeId.myTypeSpecifierSequence;
+		
+		if (aTypeId.myAbstractDeclarator)
+			aStream << *aTypeId.myAbstractDeclarator;
+
+		indent--;
+		aStream << NewLine() << "}";
+	}
+	
+	void operator<<(std::ostream& aStream, const AssignmentExpression& aExpression)
+	{
+		aStream << NewLine() << "TODO";
+	}
+
+	void operator<<(std::ostream& aStream, const TypeSpecifierSequence& aTypeSpecifierSequence)
+	{
+		for (TypeSpecifier typeSpecifier : aTypeSpecifierSequence.myTypeSpecifiers)
+		{
+			switch (typeSpecifier.index())
+			{
+				case 0:
+					aStream << std::get<TrailingTypeSpecifier>(typeSpecifier);
+					break;
+				case 1:
+					aStream << std::get<ClassSpecifier>(typeSpecifier);
+					break;
+				case 2:
+					aStream << std::get<EnumSpecifier>(typeSpecifier);
+					break;
+			}
+		}
+
+		if (aTypeSpecifierSequence.myAttributeSpecifierSequence)
+			aStream << *aTypeSpecifierSequence.myAttributeSpecifierSequence;
+	}
+
+	void operator<<(std::ostream& aStream, const AbstractDeclarator& aActractDeclarator)
+	{
+		aStream << NewLine() << "TODO";
+	}
+
+	void operator<<(std::ostream& aStream, const AttributeSpecifierSequence& aAttributeSpecifireSequence)
+	{
+		for (std::variant<AttributeSpecifier, AlignmentSpecifier> specifier : aAttributeSpecifireSequence)
+		{
+			switch (specifier.index())
+			{
+				case 0: {
+					AttributeSpecifier& attr = std::get<AttributeSpecifier>(specifier);
+					aStream << NewLine() << "AttributeSpecifier";
+
+					if (!attr.myAttributeList.myAttributes.empty())
+					{
+						aStream << NewLine() << "{";
+						indent++;
+
+						aStream << NewLine() << "Attributes";
+						aStream << NewLine() << "{";
+						indent++;
+
+						for (Attribute attribute : attr.myAttributeList.myAttributes)
+						{
+							aStream << attribute;
+						}
+
+						indent--;
+						aStream << NewLine() << "}";
+
+						aStream << NewLine() << "Ellipsis: ";
+						if (attr.myAttributeList.myEllipsis)
+							aStream << "True";
+						else
+							aStream << "False";
+
+						indent--;
+						aStream << NewLine() << "}";
+					}
+					break;
+				}
+				case 1:
+					AlignmentSpecifier& align = std::get<AlignmentSpecifier>(specifier);
+					aStream << NewLine() << "Alignas";
+					aStream << NewLine() << "{";
+					indent++;
+
+					switch (align.myContent.index())
+					{
+						case 0:
+							aStream << std::get<TypeId>(align.myContent);
+							break;
+						case 1:
+							aStream << std::get<AssignmentExpression>(align.myContent);
+							break;
+					}
+
+					indent--;
+					aStream << NewLine() << "}";
+					break;
+			}
+		}
+	}
+	
+	void operator<<(std::ostream& aStream, const TrailingTypeSpecifier& aTrailingTypeSpecifier)
+	{
+		switch (aTrailingTypeSpecifier.index())
+		{
+			case 0:
+				aStream << std::get<SimpleTypeSpecifier>(aTrailingTypeSpecifier);
+				break;
+			case 1:
+				aStream << std::get<ElaborateTypeSpecifier>(aTrailingTypeSpecifier);
+				break;
+			case 2:
+				aStream << std::get<TypenameSpecifier>(aTrailingTypeSpecifier);
+				break;
+			case 3:
+				aStream << std::get<CVQualifier>(aTrailingTypeSpecifier);
+				break;
+		}
+	}
+
+	void operator<<(std::ostream& aStream, const ClassSpecifier& aClassSpecifier)
+	{
+		aStream << NewLine() << "TODO";
+	}
+
+	void operator<<(std::ostream& aStream, const EnumSpecifier& aEnumSpecifier)
+	{
+		aStream << NewLine() << "TODO";
+	}
+
+	void operator<<(std::ostream& aStream, const SimpleTypeSpecifier& aSimpleTypeSpecifier)
+	{
+		switch (aSimpleTypeSpecifier.index())
+		{
+			case 0:
+				aStream << std::get<SimpleTypeSpecifier_Typename>(aSimpleTypeSpecifier);
+				break;
+			case 1:
+				aStream << std::get<SimpleTypeSpecifier_TemplateTypename>(aSimpleTypeSpecifier);
+				break;
+			case 2:
+				aStream << std::get<SimpleTypeSpecifier_Builtin>(aSimpleTypeSpecifier);
+				break;
+			case 3:
+				aStream << std::get<DecltypeSpecifier>(aSimpleTypeSpecifier);
+				break;
+		}
+	}
+
+	void operator<<(std::ostream& aStream, const ElaborateTypeSpecifier& aElaborateTypeSpecifier)
+	{
+		aStream << NewLine() << "TODO";
+	}
+
+	void operator<<(std::ostream& aStream, const TypenameSpecifier& aTypenameSpecifier)
+	{
+		aStream << NewLine() << "TODO";
+	}
+
+	void operator<<(std::ostream& aStream, const CVQualifier& aCVQualifier)
+	{
+		aStream << NewLine() << "TODO";
+	}
+
+	void operator<<(std::ostream& aStream, const SimpleTypeSpecifier_Typename& aTypeName)
+	{
+		aStream << NewLine() << "Typename";
+		aStream << NewLine() << "{";
+		indent++;
+
+		aStream << NewLine() << "Explicitly global: " << (aTypeName.myColonColon ? "True": "False");
+		
+		if (aTypeName.myNameSpecifier)
+			aStream << *aTypeName.myNameSpecifier;
+		
+		aStream << aTypeName.myTypename;
+
+
+		indent--;
+		aStream << NewLine() << "}";
+	}
+
+	void operator<<(std::ostream& aStream, const SimpleTypeSpecifier_TemplateTypename& aTemplatedTypename)
+	{
+		aStream << NewLine() << "TODO";
+	}
+
+	void operator<<(std::ostream& aStream, const SimpleTypeSpecifier_Builtin& aBuiltin)
+	{
+		aStream << NewLine() << aBuiltin.myType->myRawText;
+	}
+
+	void operator<<(std::ostream& aStream, const DecltypeSpecifier& aDecltypeSpecifier)
+	{
+		aStream << NewLine() << "TODO";
+	}
+	
+	void operator<<(std::ostream& aStream, const NestedNameSpecifier& aNestedNameSpecifier)
+	{
+		aStream << NewLine() << "TODO";
+	}
+
+	void operator<<(std::ostream& aStream, const Typename& aTypename)
+	{
+		switch (aTypename.index())
+		{
+			case 0:
+				aStream << NewLine() << std::get<Identifier>(aTypename)->myRawText;
+				break;
+			case 1:
+				aStream << std::get<SimpleTemplateId>(aTypename);
+				break;
+		}
 	}
 
 }
