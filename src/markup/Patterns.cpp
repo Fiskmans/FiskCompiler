@@ -59,43 +59,43 @@ namespace markup
 
 	size_t indent = 0;
 
-	template<AssingableBy<BlockDeclaration> T>
+	template<AssignableBy<BlockDeclaration> T>
 	bool ParseBlockDeclaration(TokenStream& aStream, T& aOut)
 	{
 		// TODO
 		return false;
 	}
-	template<AssingableBy<FunctionDeclaration> T>
+	template<AssignableBy<FunctionDeclaration> T>
 	bool ParseFunctionDeclaration(TokenStream& aStream, T& aOut)
 	{
 		// TODO
 		return false;
 	}
-	template<AssingableBy<TemplateDeclaration> T>
+	template<AssignableBy<TemplateDeclaration> T>
 	bool ParseTemplateDeclaration(TokenStream& aStream, T& aOut)
 	{
 		// TODO
 		return false;
 	}
-	template<AssingableBy<ExplicitInstantiation> T>
+	template<AssignableBy<ExplicitInstantiation> T>
 	bool ParseExplicitInstantiation(TokenStream& aStream, T& aOut)
 	{
 		// TODO
 		return false;
 	}
-	template<AssingableBy<LinkageSpecification> T>
+	template<AssignableBy<LinkageSpecification> T>
 	bool ParseLinkageSpecification(TokenStream& aStream, T& aOut)
 	{
 		// TODO
 		return false;
 	}
-	template<AssingableBy<NamespaceDefinition> T>
+	template<AssignableBy<NamespaceDefinition> T>
 	bool ParseNamespaceDefinition(TokenStream& aStream, T& aOut)
 	{
 		// TODO
 		return false;
 	}
-	template<AssingableBy<EmptyDeclaration> T>
+	template<AssignableBy<EmptyDeclaration> T>
 	bool ParseEmptyDeclaration(TokenStream& aStream, T& aOut)
 	{
 		if (aStream.TokenType() != tokenizer::Token::Type::Semicolon)
@@ -108,7 +108,7 @@ namespace markup
 		return true;
 	}
 
-	template<AssingableBy<AttributeArgumentClause> T>
+	template<AssignableBy<AttributeArgumentClause> T>
 	bool ParseAttributeArgumentClause(TokenStream& aStream, T& aOut)
 	{
 		TokenStream stream(aStream);
@@ -235,7 +235,7 @@ namespace markup
 		return false;
 	}
 
-	template<AssingableBy<NestedNameSpecifier> T>
+	template<AssignableBy<NestedNameSpecifier> T>
 	bool ParseNestedNameSpecifier(TokenStream& aStream, T& aOut)
 	{
 		// TODO
@@ -269,7 +269,7 @@ namespace markup
 		return true;
 	}
 
-	template<AssingableBy<SimpleTypeSpecifier> T>
+	template<AssignableBy<SimpleTypeSpecifier> T>
 	bool ParseSimpleTypeSpecifier(TokenStream& aStream, T& aOut)
 	{
 		TokenStream stream(aStream);
@@ -368,14 +368,14 @@ namespace markup
 		return false;
 	}
 
-	template<AssingableBy<AbstractDeclarator> T>
+	template<AssignableBy<AbstractDeclarator> T>
 	bool ParseAbstractDeclarator(TokenStream& aStream, T& aOut)
 	{
 		// TODO
 		return false;
 	}
 
-	template<AssingableBy<TypeId> T>
+	template<AssignableBy<TypeId> T>
 	bool ParseTypeId(TokenStream& aStream, T& aOut)
 	{
 		TokenStream stream(aStream);
@@ -392,6 +392,9 @@ namespace markup
 			typeId.myTypeSpecifierSequence->myTypeSpecifiers.push_back(typeSpecifier);
 		}
 
+		if (typeId.myTypeSpecifierSequence->myTypeSpecifiers.size() == 0)
+			return false;
+
 		AbstractDeclarator declarator;
 		if (ParseAbstractDeclarator(stream, declarator))
 			typeId.myAbstractDeclarator = std::make_shared<AbstractDeclarator>(declarator);
@@ -401,11 +404,558 @@ namespace markup
 
 		return true;
 	}
+	
+	template<AssignableBy<PostfixExpression> T>
+	bool ParsePostfixExpression(TokenStream& aStream, T& aOut)
+	{
+		PostfixExpression expr;
 
-	template<AssingableBy<AssignmentExpression> T>
-	bool ParseAssignmentExpression(TokenStream& aStream, T& aOut)
+		// TODO
+		return false;
+	}
+
+	template<AssignableBy<NoexceptExpression> T>
+	bool ParseNoexceptExpression(TokenStream& aStream, T& aOut)
 	{
 		// TODO
+		return false;
+	}
+
+	template<AssignableBy<NewExpression> T>
+	bool ParseNewExpression(TokenStream& aStream, T& aOut)
+	{
+		// TODO
+		return false;
+	}
+
+	template<AssignableBy<DeleteExpression> T>
+	bool ParseDeleteExpression(TokenStream& aStream, T& aOut)
+	{
+		// TODO
+		return false;
+	}
+
+	bool ParseCastExpression(TokenStream& aStream, CastExpression& aOut);
+
+	template<AssignableBy<UnaryExpression> T>
+	bool ParseUnaryExpression(TokenStream& aStream, T& aOut)
+	{
+		UnaryExpression unaryExpression;
+
+		switch (stream.TokenType())
+		{
+			case tokenizer::Token::Type::PlusPlus:
+			case tokenizer::Token::Type::MinusMinus:
+			case tokenizer::Token::Type::Star:
+			case tokenizer::Token::Type::BitAnd:
+			case tokenizer::Token::Type::Plus:
+			case tokenizer::Token::Type::Minus:
+			case tokenizer::Token::Type::Not:
+			case tokenizer::Token::Type::Complement:
+			{
+				TokenStream stream(aStream);
+				UnaryExpression_PrefixExpression prefix;
+				prefix.myOperator = &stream.Consume();
+				prefix.myRightHandSide = std::make_shared<CastExpression>();
+
+				if (!ParseCastExpression(stream, prefix.myRightHandSide))
+					return false;
+
+				unaryExpression = prefix;
+				aOut = unaryExpression;
+				aStream = stream;
+				return true;
+			}
+			case tokenizer::Token::Type::kw_sizeof:
+			{
+				// TODO
+				return false;
+			}
+			case tokenizer::Token::Type::kw_alignof:
+			{
+				// TODO
+				return false;
+			}
+		}
+
+		if (ParseNoexceptExpression(aStream, unaryExpression))
+		{
+			aOut = unaryExpression;
+			return true;
+		}
+
+		if (ParseNewExpression(aStream, unaryExpression))
+		{
+			aOut = unaryExpression;
+			return true;
+		}
+
+		if (ParseDeleteExpression(aStream, unaryExpression))
+		{
+			aOut = unaryExpression;
+			return true;
+		}
+
+		if (ParsePostfixExpression(aStream, unaryExpression))
+		{
+			aOut = unaryExpression;
+			return true;
+		}
+
+		return false;
+	}
+
+	bool ParseCastExpression(TokenStream& aStream, CastExpression& aOut)
+	{
+		do
+		{
+			TokenStream stream(aStream);
+			if (stream.TokenType() != tokenizer::Token::Type::L_Paren)
+				break;
+
+			CastExpression_recurse recurse;
+			recurse.myOpeningParenthesis = &stream.Consume();
+
+			if (!ParseTypeId(stream, recurse.myTypeId))
+				break;
+
+			if (stream.TokenType() != tokenizer::Token::Type::R_Paren)
+				break;
+
+			CastExpression child;
+			if (!ParseCastExpression(stream, child))
+				break;
+
+			recurse.myRightHandSide = std::make_shared<CastExpression>(child);
+			aStream = stream;
+			aOut.myContent = recurse;
+			return true;
+
+		} while (false);
+
+		if (!ParseUnaryExpression(aStream, aOut.myContent))
+			return false;
+
+		return true;
+	}
+	
+	bool ParsePMExpression(TokenStream& aStream, PMExpression& aOut)
+	{
+		TokenStream stream(aStream);
+		PMExpression expr;
+
+		while (true)
+		{
+			if (!ParseCastExpression(stream, expr.myRightHandSide))
+				return false;
+
+			const tokenizer::Token::Type candidates[] = 
+			{
+				tokenizer::Token::Type::DotStar,
+				tokenizer::Token::Type::ArrowStar
+			};
+
+			if (std::find(std::begin(candidates),std::end(candidates), stream.TokenType()) != std::end(candidates))
+				break;
+
+			PMExpression next;
+			next.myDereferenceOperator = &stream.Consume();
+			next.myLeftHandSide = std::make_shared<PMExpression>(expr);
+
+			expr = next;
+		}
+
+		aOut = expr;
+		aStream = stream;
+		return true;
+	}
+
+	bool ParseMultiplicativeExpression(TokenStream& aStream, MultiplicativeExpression& aOut)
+	{
+		TokenStream stream(aStream);
+		MultiplicativeExpression expr;
+
+		while (true)
+		{
+			if (!ParsePMExpression(stream, expr.myRightHandSide))
+				return false;
+
+			const tokenizer::Token::Type candidates[] = 
+			{
+				tokenizer::Token::Type::Star,
+				tokenizer::Token::Type::Div,
+				tokenizer::Token::Type::Mod
+			};
+
+			if (std::find(std::begin(candidates),std::end(candidates), stream.TokenType()) != std::end(candidates))
+				break;
+
+			MultiplicativeExpression next;
+			next.myMultiplicationOperator = &stream.Consume();
+			next.myLeftHandSide = std::make_shared<MultiplicativeExpression>(expr);
+
+			expr = next;
+		}
+
+		aOut = expr;
+		aStream = stream;
+		return true;
+	}
+
+	bool ParseAddativeExpression(TokenStream& aStream, AddativeExpression& aOut)
+	{
+		TokenStream stream(aStream);
+		AddativeExpression expr;
+
+		while (true)
+		{
+			if (!ParseMultiplicativeExpression(stream, expr.myRightHandSide))
+				return false;
+
+			const tokenizer::Token::Type candidates[] = 
+			{
+				tokenizer::Token::Type::Plus,
+				tokenizer::Token::Type::Minus
+			};
+
+			if (std::find(std::begin(candidates),std::end(candidates), stream.TokenType()) != std::end(candidates))
+				break;
+
+			AddativeExpression next;
+			next.myAdditionOperator = &stream.Consume();
+			next.myLeftHandSide = std::make_shared<AddativeExpression>(expr);
+
+			expr = next;
+		}
+
+		aOut = expr;
+		aStream = stream;
+		return true;
+	}
+
+	bool ParseShiftExpression(TokenStream& aStream, ShiftExpression& aOut)
+	{
+		TokenStream stream(aStream);
+		ShiftExpression expr;
+
+		while (true)
+		{
+			if (!ParseAddativeExpression(stream, expr.myRightHandSide))
+				return false;
+
+			const tokenizer::Token::Type candidates[] = 
+			{
+				tokenizer::Token::Type::LessLess,
+				tokenizer::Token::Type::GreaterGreater
+			};
+
+			if (std::find(std::begin(candidates),std::end(candidates), stream.TokenType()) != std::end(candidates))
+				break;
+
+			ShiftExpression next;
+			next.myShiftOperator = &stream.Consume();
+			next.myLeftHandSide = std::make_shared<ShiftExpression>(expr);
+
+			expr = next;
+		}
+
+		aOut = expr;
+		aStream = stream;
+		return true;
+	}
+
+	bool ParseRelationalExpression(TokenStream& aStream, RelationalExpression& aOut)
+	{
+		TokenStream stream(aStream);
+		RelationalExpression expr;
+
+		while (true)
+		{
+			if (!ParseShiftExpression(stream, expr.myRightHandSide))
+				return false;
+
+			const tokenizer::Token::Type candidates[] = 
+			{
+				tokenizer::Token::Type::Less,
+				tokenizer::Token::Type::Greater,
+				tokenizer::Token::Type::LessEqual,
+				tokenizer::Token::Type::GreaterEqual
+			};
+
+			if (std::find(std::begin(candidates),std::end(candidates), stream.TokenType()) != std::end(candidates))
+				break;
+
+			RelationalExpression next;
+			next.myRelationOperator = &stream.Consume();
+			next.myLeftHandSide = std::make_shared<RelationalExpression>(expr);
+
+			expr = next;
+		}
+
+		aOut = expr;
+		aStream = stream;
+		return true;
+	}
+
+	bool ParseEqualityExpression(TokenStream& aStream, EqualityExpression& aOut)
+	{
+		TokenStream stream(aStream);
+		EqualityExpression expr;
+
+		while (true)
+		{
+			if (!ParseRelationalExpression(stream, expr.myRightHandSide))
+				return false;
+
+			const tokenizer::Token::Type candidates[] = 
+			{
+				tokenizer::Token::Type::EqualEqual,
+				tokenizer::Token::Type::NotEquals
+			};
+
+			if (std::find(std::begin(candidates),std::end(candidates), stream.TokenType()) != std::end(candidates))
+				break;
+
+			EqualityExpression next;
+			next.myEqualityOperator = &stream.Consume();
+			next.myLeftHandSide = std::make_shared<EqualityExpression>(expr);
+
+			expr = next;
+		}
+
+		aOut = expr;
+		aStream = stream;
+		return true;
+	}
+
+	bool ParseAndExpression(TokenStream& aStream, AndExpression& aOut)
+	{
+		TokenStream stream(aStream);
+		AndExpression expr;
+
+		while (true)
+		{
+			if (!ParseEqualityExpression(stream, expr.myRightHandSide))
+				return false;
+
+			if (stream.TokenType() != tokenizer::Token::Type::BitAnd)
+				break;
+
+			AndExpression next;
+			next.myAnd = &stream.Consume();
+			next.myLeftHandSide = std::make_shared<AndExpression>(expr);
+
+			expr = next;
+		}
+
+		aOut = expr;
+		aStream = stream;
+		return true;
+	}
+
+	bool ParseExclusiveOrExpression(TokenStream& aStream, ExclusiveOrExpression& aOut)
+	{
+		TokenStream stream(aStream);
+		ExclusiveOrExpression expr;
+
+		while (true)
+		{
+			if (!ParseAndExpression(stream, expr.myRightHandSide))
+				return false;
+
+			if (stream.TokenType() != tokenizer::Token::Type::Xor)
+				break;
+
+			ExclusiveOrExpression next;
+			next.myXor = &stream.Consume();
+			next.myLeftHandSide = std::make_shared<ExclusiveOrExpression>(expr);
+
+			expr = next;
+		}
+
+		aOut = expr;
+		aStream = stream;
+		return true;
+	}
+
+	bool ParseInclusiveOrExpression(TokenStream& aStream, InclusiveOrExpression& aOut)
+	{
+		TokenStream stream(aStream);
+		InclusiveOrExpression expr;
+
+		while (true)
+		{
+			if (!ParseExclusiveOrExpression(stream, expr.myRightHandSide))
+				return false;
+
+			if (stream.TokenType() != tokenizer::Token::Type::BitOr)
+				break;
+
+			InclusiveOrExpression next;
+			next.myOr = &stream.Consume();
+			next.myLeftHandSide = std::make_shared<InclusiveOrExpression>(expr);
+
+			expr = next;
+		}
+
+		aOut = expr;
+		aStream = stream;
+		return true;
+	}
+
+	bool ParseLogicalAndExpression(TokenStream& aStream, LogicalAndExpression& aOut)
+	{
+		TokenStream stream(aStream);
+		LogicalAndExpression expr;
+
+		while (true)
+		{
+			if (!ParseInclusiveOrExpression(stream, expr.myRightHandSide))
+				return false;
+
+			if (stream.TokenType() != tokenizer::Token::Type::And)
+				break;
+
+			LogicalAndExpression next;
+			next.myAndAnd = &stream.Consume();
+			next.myLeftHandSide = std::make_shared<LogicalAndExpression>(expr);
+
+			expr = next;
+		}
+
+		aOut = expr;
+		aStream = stream;
+		return true;
+	}
+
+	bool ParseLogicalOrExpression(TokenStream& aStream, LogicalOrExpression& aOut)
+	{
+		TokenStream stream(aStream);
+		LogicalOrExpression	expr;
+
+		while (true)
+		{
+			if (!ParseLogicalAndExpression(stream, expr.myRightHandSide))
+				return false;
+
+			if (stream.TokenType() != tokenizer::Token::Type::Or)
+				break;
+
+			LogicalOrExpression next;
+			next.myOrOr = &stream.Consume();
+			next.myLeftHandSide = std::make_shared<LogicalOrExpression>(expr);
+
+			expr = next;
+		}
+
+		aOut	= expr;
+		aStream = stream;
+		return true;
+	}
+	
+	template<AssignableBy<AssignmentExpression> T>
+	bool ParseAssignmentExpression(TokenStream& aStream, T& aOut);
+
+	bool ParseExpression(TokenStream& aStream, Expression& aOut)
+	{
+		TokenStream stream(aStream);
+		Expression expr;
+		
+		while(true)
+		{
+			if (!ParseAssignmentExpression(stream, expr.myRightHandSide))
+				return false;
+
+			if (stream.TokenType() != tokenizer::Token::Type::Comma)
+				break;
+
+			Expression next;
+			next.myComma = &stream.Consume();
+			next.myLeftHandSide = std::make_shared<Expression>(expr);
+			
+			expr = next;
+		}
+
+		aOut = expr;
+		aStream = stream;
+		return true;
+	}
+
+	template<AssignableBy<ConditionalExpression> T>
+	bool ParseConditionalExpression(TokenStream& aStream, T& aOut)
+	{
+		TokenStream stream(aStream);
+
+		ConditionalExpression expr;
+
+		if (!ParseLogicalOrExpression(stream, expr.myCondition))
+			return false;
+
+		if (stream.TokenType() != tokenizer::Token::Type::Question)
+		{
+			aOut = expr;
+			aStream = stream;
+			return true;
+		}
+
+		expr.myOnTruthy = std::make_shared<Expression>();
+		expr.myQuestionMark = &stream.Consume();
+		expr.myOnFalsy = std::make_shared<AssignmentExpression>();
+
+		if (!ParseExpression(stream, *expr.myOnTruthy))
+			return false;
+
+		if (stream.TokenType() != tokenizer::Token::Type::Colon)
+			return false;
+
+		expr.myColon = &stream.Consume();
+		
+		if (!ParseAssignmentExpression(stream, *expr.myOnFalsy))
+			return false;
+
+		aOut = expr;
+		aStream = stream;
+
+		return true;
+	}
+	
+	template<AssignableBy<AssignmentExpression_Assignment> T>
+	bool ParseAssignmentExpression_Assignment(TokenStream& aStream, T& aOut)
+	{
+		// TODO
+		return false;
+	}
+	
+	template<AssignableBy<ThrowExpression> T>
+	bool ParseThrowExpression(TokenStream& aStream, T& aOut)
+	{
+		// TODO
+		return false;
+	}
+
+	template<AssignableBy<AssignmentExpression> T>
+	bool ParseAssignmentExpression(TokenStream& aStream, T& aOut)
+	{
+		AssignmentExpression assign;
+
+		if (ParseConditionalExpression(aStream, assign))
+		{
+			aOut = assign;
+			return true;
+		}
+
+		if (ParseAssignmentExpression_Assignment(aStream, assign))
+		{
+			aOut = assign;
+			return true;
+		}
+
+		if (ParseThrowExpression(aStream, assign))
+		{
+			aOut = assign;
+			return true;
+		}
+
 		return false;
 	}
 
@@ -478,7 +1028,7 @@ namespace markup
 		return false;
 	}
 
-	template<AssingableBy<AttributeDeclaration> T>
+	template<AssignableBy<AttributeDeclaration> T>
 	bool ParseAttributeDeclaration(TokenStream& aStream, T& aOut)
 	{
 		TokenStream stream(aStream);

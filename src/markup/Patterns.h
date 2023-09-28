@@ -118,9 +118,353 @@ namespace markup
 		const tokenizer::Token* myEllipsis = nullptr;
 	};
 
-	struct AssignmentExpression
+	struct NestedNameSpecifier
+	{
+	};
+	
+	struct SimpleTemplateId
+	{
+	};
+
+	struct EnumName
+	{
+	};
+
+	struct TypedefName
+	{
+	};
+
+	struct DecltypeSpecifier
+	{
+	};
+
+	struct ElaborateTypeSpecifier
+	{
+	};
+
+	struct TypenameSpecifier
+	{
+	};
+
+	// type-name
+	// class-name, enum-name, and typedef-name are all baked into Identifier and SimpleTemplateId here
+	using Typename = std::variant<Identifier, SimpleTemplateId>;
+
+	struct SimpleTypeSpecifier_Typename
+	{
+		const tokenizer::Token*				myColonColon = nullptr;
+		std::optional<NestedNameSpecifier>	myNameSpecifier;
+		Typename							myTypename;
+	};
+
+	struct SimpleTypeSpecifier_TemplateTypename
+	{
+		const tokenizer::Token* myColonColon = nullptr;
+		NestedNameSpecifier		myNameSpecifier;
+		SimpleTemplateId		mySimpleTemplateId;
+	};
+
+	struct SimpleTypeSpecifier_Builtin
+	{
+		const tokenizer::Token* myType = nullptr;
+	};
+
+	// simple-type-specifier
+	using SimpleTypeSpecifier	= std::variant<SimpleTypeSpecifier_Typename, SimpleTypeSpecifier_TemplateTypename, SimpleTypeSpecifier_Builtin, DecltypeSpecifier>;
+
+	struct Expression;
+
+	struct IdExpression
 	{
 	
+	};
+
+	struct ExpressionList
+	{
+	
+	};
+
+	struct BracedInitList
+	{
+	
+	};
+
+	struct PseudoDestructorName
+	{
+	};
+
+	struct CastExpression;
+
+	using Literal = const tokenizer::Token*;
+
+	struct PrimaryExpression_Parenthesis
+	{
+		const tokenizer::Token* myOpeningParenthesis = nullptr;
+		NotNullPtr<Expression> myExpression;
+		const tokenizer::Token* myClosingParenthesis = nullptr;
+	};
+
+	struct LambdaExpression
+	{
+	
+	};
+
+	using PrimaryExpression = std::variant<
+		Literal,
+		const tokenizer::Token*, // this
+		PrimaryExpression_Parenthesis,
+		IdExpression,
+		LambdaExpression>;
+
+	struct PostfixExpression;
+
+	struct PostfixExpression_Subscript
+	{
+		NotNullPtr<PostfixExpression> myLeftHandSide;
+		const tokenizer::Token* myOpeningBracket = nullptr;
+		std::variant<NotNullPtr<Expression>, std::optional<BracedInitList>> myExpression;
+		const tokenizer::Token* myClosingBracket = nullptr;
+	};
+
+	struct PostfixExpression_Call
+	{
+		std::variant<SimpleTypeSpecifier, TypenameSpecifier, NotNullPtr<PostfixExpression>> myLeftHandSide;
+		const tokenizer::Token* myOpeningBracket = nullptr;
+		std::optional<ExpressionList> myExpression;
+		const tokenizer::Token* myClosingBracket = nullptr;
+	};
+
+	struct PostfixExpression_BracedInitialization
+	{
+		std::variant<SimpleTypeSpecifier, TypenameSpecifier> myLeftHandSide;
+		BracedInitList myBracedInitializerList;
+	};
+
+	struct PostfixExpression_Access
+	{
+		NotNullPtr<PostfixExpression> myLeftHandSide;
+		const tokenizer::Token* myAccessOperator = nullptr; // . ->
+		const tokenizer::Token* myTemplate = nullptr;
+		IdExpression myIdExpression;
+	};
+
+	struct PostfixExpression_Destruct
+	{
+		NotNullPtr<PostfixExpression> myLeftHandSide;
+		const tokenizer::Token* myAccessOperator = nullptr; // . ->
+		PseudoDestructorName myPseudoDestructorName;
+	};
+
+	struct PostfixExpression_IncDec
+	{
+		NotNullPtr<PostfixExpression> myLeftHandSide;
+		const tokenizer::Token* myOperator; // ++ --
+	};
+
+	struct PostfixExpression_Cast
+	{
+		const tokenizer::Token* myCastType = nullptr; // dynamic_cast static_cast reinterpret_cast const_cast
+		const tokenizer::Token* myOpeningLessThan = nullptr;
+		TypeId myTypeId;
+		const tokenizer::Token* myClosingGreaterThan = nullptr;
+		const tokenizer::Token* myOpeningParenthesis = nullptr;
+		NotNullPtr<Expression> myExpression;
+		const tokenizer::Token* myClosingParenthesis = nullptr;
+	};
+
+	struct PostfixExpression_Typeid
+	{
+		const tokenizer::Token* myTypeid = nullptr;
+		const tokenizer::Token* myOpeningParenthesis = nullptr;
+		std::variant<TypeId, NotNullPtr<Expression>> myContent;
+		const tokenizer::Token* myClosingParenthesis = nullptr;
+	};
+
+	struct PostfixExpression
+	{
+		std::variant<
+			PrimaryExpression, 
+			PostfixExpression_Subscript, 
+			PostfixExpression_Call, 
+			PostfixExpression_Call, 
+			PostfixExpression_BracedInitialization, 
+			PostfixExpression_Access, 
+			PostfixExpression_Destruct, 
+			PostfixExpression_IncDec, 
+			PostfixExpression_Cast, 
+			PostfixExpression_Typeid> myContent;
+	};
+
+	struct UnaryExpression_PrefixExpression
+	{
+		const tokenizer::Token* myOperator = nullptr; // ++ -- * & + - ! ~
+		NotNullPtr<CastExpression> myRightHandSide;
+	};
+
+	struct UnaryExpression_sizeof
+	{
+	};
+
+	struct UnaryExpression_alignof
+	{
+	};
+
+	struct NoexceptExpression
+	{
+	};
+
+	struct NewExpression
+	{
+	};
+
+	struct DeleteExpression
+	{
+	};
+
+	using UnaryExpression = std::variant<PostfixExpression, UnaryExpression_PrefixExpression, UnaryExpression_sizeof, UnaryExpression_alignof, NoexceptExtression, NewExpression, DeleteExpression>;
+
+	struct CastExpression_recurse
+	{
+		const tokenizer::Token* myOpeningParenthesis = nullptr;
+		TypeId myTypeId;
+		const tokenizer::Token* myClosingParenthesis = nullptr;
+		NotNullPtr<CastExpression> myRightHandSide;
+	};
+
+	struct CastExpression
+	{
+		std::variant<UnaryExpression, CastExpression_recurse> myContent;
+	};
+
+	struct PMExpression
+	{
+		MaybeNullPtr<PMExpression> myLeftHandSide;
+		const tokenizer::Token* myDereferenceOperator = nullptr; // .* ->*
+
+		CastExpression myRightHandSide;
+	};
+
+	struct MultiplicativeExpression
+	{
+		MaybeNullPtr<MultiplicativeExpression> myLeftHandSide;
+		const tokenizer::Token* myMultiplicationOperator = nullptr; // * / %
+
+		PMExpression myRightHandSide;
+	};
+
+	struct AddativeExpression
+	{
+		MaybeNullPtr<AddativeExpression> myLeftHandSide;
+		const tokenizer::Token* myAdditionOperator = nullptr; // - +
+
+		MultiplicativeExpression myRightHandSide;
+	};
+
+	struct ShiftExpression
+	{
+		MaybeNullPtr<ShiftExpression> myLeftHandSide;
+		const tokenizer::Token* myShiftOperator = nullptr; // << >>
+
+		AddativeExpression myRightHandSide;
+	};
+
+	struct RelationalExpression
+	{
+		MaybeNullPtr<RelationalExpression> myLeftHandSide;
+		const tokenizer::Token* myRelationOperator = nullptr; // < > <= >=
+
+		ShiftExpression myRightHandSide;
+	};
+
+	struct EqualityExpression
+	{
+		MaybeNullPtr<EqualityExpression> myLeftHandSide;
+		const tokenizer::Token* myEqualityOperator = nullptr; // == !=
+
+		RelationalExpression myRightHandSide;
+	};
+
+	struct AndExpression
+	{
+		MaybeNullPtr<AndExpression> myLeftHandSide;
+		const tokenizer::Token* myAnd = nullptr; // &
+
+		EqualityExpression myRightHandSide;
+	};
+
+	struct ExclusiveOrExpression
+	{
+		MaybeNullPtr<ExclusiveOrExpression> myLeftHandSide;
+		const tokenizer::Token* myXor = nullptr; // ^
+
+		AndExpression myRightHandSide;
+	};
+
+	// inclusive-or-expression
+	struct InclusiveOrExpression
+	{
+		MaybeNullPtr<InclusiveOrExpression> myLeftHandSide;
+		const tokenizer::Token* myOr = nullptr; // |
+
+		ExclusiveOrExpression myRightHandSide;
+	};
+
+	// logical-and-expression
+	struct LogicalAndExpression
+	{
+		MaybeNullPtr<LogicalAndExpression> myLeftHandSide;
+		const tokenizer::Token* myAndAnd = nullptr; // &&
+
+		InclusiveOrExpression myRightHandSide;
+	};
+
+	// logical-or-expression
+	struct LogicalOrExpression
+	{
+		MaybeNullPtr<LogicalOrExpression> myLeftHandSide;
+		const tokenizer::Token* myOrOr = nullptr; // ||
+
+		LogicalAndExpression myRightHandSide;
+	};
+
+	using AssingmentOperator = const tokenizer::Token*;
+
+	struct InitializerClause
+	{
+	};
+
+	struct AssignmentExpression_Assignment
+	{
+		LogicalOrExpression myLogicalOrExpression;
+		AssingmentOperator myOperator;
+		InitializerClause myInitializerClause;
+	};
+
+	struct ThrowExpression
+	{
+	};
+
+	struct ConditionalExpression;
+
+	// assignment-expression
+	using AssignmentExpression = std::variant<ConditionalExpression, AssignmentExpression_Assignment, ThrowExpression>;
+
+	struct ConditionalExpression
+	{
+		LogicalOrExpression myCondition;
+		const tokenizer::Token* myQuestionMark	= nullptr;
+		MaybeNullPtr<Expression> myOnTruthy;
+		const tokenizer::Token* myColon = nullptr;
+		MaybeNullPtr<AssignmentExpression> myOnFalsy;
+	};
+
+
+	struct Expression
+	{
+		MaybeNullPtr<Expression> myLeftHandSide;
+		const tokenizer::Token* myComma = nullptr; // ,
+
+		AssignmentExpression myRightHandSide;
 	};
 
 	struct AlignmentSpecifier
@@ -145,63 +489,6 @@ namespace markup
 	};
 
 	using AttributeSpecifierSequence = std::vector<std::variant<AttributeSpecifier, AlignmentSpecifier>>;
-
-	struct NestedNameSpecifier
-	{
-	
-	};
-
-
-	struct EnumName
-	{
-	};
-
-	struct TypedefName
-	{
-	};
-
-	struct SimpleTemplateId
-	{
-	};
-
-	// type-name
-	// class-name, enum-name, and typedef-name are all baked into Identifier and SimpleTemplateId here
-	using Typename = std::variant<Identifier, SimpleTemplateId>;
-
-	struct DecltypeSpecifier
-	{
-	
-	};
-
-	struct SimpleTypeSpecifier_Typename
-	{
-		const tokenizer::Token* myColonColon = nullptr;
-		std::optional<NestedNameSpecifier> myNameSpecifier;
-		Typename myTypename;
-	};
-
-	struct SimpleTypeSpecifier_TemplateTypename
-	{
-		const tokenizer::Token* myColonColon = nullptr;
-		NestedNameSpecifier myNameSpecifier;
-		SimpleTemplateId mySimpleTemplateId;
-	};
-
-	struct SimpleTypeSpecifier_Builtin
-	{
-		const tokenizer::Token* myType = nullptr;
-	};
-
-	// simple-type-specifier
-	using SimpleTypeSpecifier = std::variant<SimpleTypeSpecifier_Typename, SimpleTypeSpecifier_TemplateTypename, SimpleTypeSpecifier_Builtin, DecltypeSpecifier>;
-
-	struct ElaborateTypeSpecifier
-	{
-	};
-
-	struct TypenameSpecifier
-	{
-	};
 
 	struct CVQualifier
 	{
