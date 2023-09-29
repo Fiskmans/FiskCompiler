@@ -40,16 +40,16 @@ namespace markup
 			return myBegin->myType;
 		}
 
-		const tokenizer::Token& Consume()
+		const tokenizer::Token* Consume()
 		{
 			if (Empty())
 			{
 				CompilerContext::EmitError("Unexpected eof");
-				return tokenizer::Token::SafetyToken;
+				return &tokenizer::Token::SafetyToken;
 			}
 			iterator out = myBegin;
 			myBegin++;
-			return *out;
+			return &*out;
 		}
 
 	private:
@@ -118,7 +118,7 @@ namespace markup
 		if (stream.TokenType() != tokenizer::Token::Type::L_Paren)
 			return false;
 
-		clause.myOpeningParenthesis = &stream.Consume();
+		clause.myOpeningParenthesis = stream.Consume();
 
 		if (stream.TokenType() == tokenizer::Token::Type::R_Paren)
 			return false;
@@ -149,10 +149,10 @@ namespace markup
 			}
 
 			if (!closers.empty())
-				clause.myBalancedTokenSequence.push_back(&stream.Consume());
+				clause.myBalancedTokenSequence.push_back(stream.Consume());
 		}
 
-		clause.myClosingParenthesis = &stream.Consume();
+		clause.myClosingParenthesis = stream.Consume();
 
 		aOut = clause;
 		aStream = stream;
@@ -168,16 +168,16 @@ namespace markup
 		if (stream.TokenType() != tokenizer::Token::Type::Identifier)
 			return false;
 
-		const tokenizer::Token* firstIdentifier = &stream.Consume();
+		const tokenizer::Token* firstIdentifier = stream.Consume();
 
 		if (stream.TokenType() == tokenizer::Token::Type::Colon_colon)
 		{
 			aOut.myAttributeNamespace = firstIdentifier;
-			aOut.myColonColon = &stream.Consume();
+			aOut.myColonColon = stream.Consume();
 			if (stream.TokenType() != tokenizer::Token::Type::Identifier)
 				return false;
 
-			aOut.myIdentifier = &stream.Consume();
+			aOut.myIdentifier = stream.Consume();
 		}
 		else
 		{
@@ -263,7 +263,7 @@ namespace markup
 			return true;
 		}
 
-		aOut = &stream.Consume();
+		aOut = stream.Consume();
 		aStream = stream;
 
 		return true;
@@ -292,7 +292,7 @@ namespace markup
 			case tokenizer::Token::Type::kw_auto:
 			{
 				SimpleTypeSpecifier_Builtin builtin;
-				builtin.myType = &stream.Consume();
+				builtin.myType = stream.Consume();
 
 				simpleTypeSpecifier = builtin;
 				aOut = simpleTypeSpecifier;
@@ -315,7 +315,7 @@ namespace markup
 		const tokenizer::Token* colonColon = nullptr;
 
 		if (stream.TokenType() == tokenizer::Token::Type::Colon_colon)
-			colonColon = &stream.Consume();
+			colonColon = stream.Consume();
 
 		std::optional<NestedNameSpecifier> nestedNameSpecifer;
 
@@ -405,13 +405,184 @@ namespace markup
 		return true;
 	}
 	
-	template<AssignableBy<PostfixExpression> T>
+	bool ParsePostfixExpression_cast(TokenStream& aStream, PostfixExpression& aOut)
+	{
+	}
+
+	bool ParsePostfixExpression_construction(TokenStream& aStream, PostfixExpression& aOut)
+	{
+	}
+
+	bool ParsePostfixExpression_extendable(TokenStream& aStream, PostfixExpression& aOut)
+	{
+	}
+	
+	bool ParseExpression(TokenStream& aStream, Expression& aOut);
+
+	bool ParsePrimaryExpression(TokenStream& aStream, PrimaryExpression& aOut)
+	{
+		// TODO
+		return false;
+	}
+
+	bool ParsePostfixExpression_nonrecurse(markup::TokenStream& aStream, markup::PostfixExpression& aOut)
+	{
+		switch (aStream.TokenType())
+		{
+			case tokenizer::Token::Type::kw_const_cast:
+			case tokenizer::Token::Type::kw_dynamic_cast:
+			case tokenizer::Token::Type::kw_reinterpret_cast:
+			case tokenizer::Token::Type::kw_static_cast:
+				if (!ParsePostfixExpression_cast(aStream, aOut))
+					return false;
+
+				return true;
+
+			case tokenizer::Token::Type::kw_typeid: {
+				TokenStream& stream(aStream);
+
+				PostfixExpression_Typeid id;
+				id.myTypeid = stream.Consume();
+
+				if (stream.TokenType() != tokenizer::Token::Type::L_Paren)
+					return false;
+
+				id.myOpeningParenthesis = stream.Consume();
+
+				if (!ParseTypeId(stream, id.myContent))
+				{
+					Expression subExpression;
+					if (!ParseExpression(stream, subExpression))
+						return false;
+
+					id.myContent = std::make_shared<Expression>(subExpression);
+				}
+
+				if (stream.TokenType() == tokenizer::Token::Type::R_Paren)
+					return false;
+
+				id.myClosingParenthesis = stream.Consume();
+
+				aOut.myContent = id;
+
+				return true;
+			}
+		}
+
+		if (ParsePostfixExpression_construction(aStream, aOut))
+			return true;
+
+		PrimaryExpression primary;
+
+		if (!ParsePrimaryExpression(aStream, primary))
+			return false;
+
+		aOut.myContent	= primary;
+		return true;
+	}
+
+	template <AssignableBy<PostfixExpression> T>
 	bool ParsePostfixExpression(TokenStream& aStream, T& aOut)
 	{
 		PostfixExpression expr;
+		if (!ParsePostfixExpression_nonrecurse(aStream, expr))
+			return false;
 
-		// TODO
-		return false;
+		while(true)
+		{
+			switch (aStream.TokenType())
+			{
+				case tokenizer::Token::Type::L_Bracket:
+				{
+					TokenStream& stream(aStream);
+
+					PostfixExpression_Subscript subscript;
+					subscript.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
+					subscript.myOpeningBracket = stream.Consume();
+
+					Expression accessExpression;
+					BracedInitList accessList;
+
+					if (ParseExpression(stream, accessExpression))
+					{
+						subscript.myAccess = accessExpression
+					}
+					else if (ParseBracedInitList(stream, accessList))
+					{
+						subscript.myAccess = accessList;
+					}
+					else
+					{
+						subscript.myAccess = std::optional<BracedInitList>{};
+					}
+
+					if (stream.TokenType() != tokenizer::Token::Type::R_Bracket)
+						return false;
+
+					subscript.myClosingBracket = stream.Consume();
+					expr = subscript;
+					aStream = stream;
+					break;
+				}
+
+				case tokenizer::Token::Type::L_Paren:
+				{
+					TokenStream& stream(aStream);
+					PostfixExpression_Call call;
+
+					call.myLeftHandSide = std::make_shared<PostfixExpression>();
+					call.myOpeningParenthesis = stream.Consume();
+
+					ExpressionList expressionList;
+
+					if (ParseExpressionList(stream, expressionList))
+					{
+						call.myExpression = expressionList;
+					}
+
+					if (stream.TokenType() != tokenizer::Token::Type::R_Paren)
+						return false;
+
+					call.myClosingParenthesis = stream.Consume();
+
+					expr = call;
+					aStream = stream;
+					break;
+				}
+
+				case tokenizer::Token::Type::Dot:
+				case tokenizer::Token::Type::Arrow:
+				{
+					TokenStream& stream(aStream);
+
+					const tokenizer::Token* op = stream.Consume();
+
+					PostfixExpression_Access access;
+					
+					if (stream.TokenType() == tokenizer::Token::Type::kw_template)
+					{
+						access.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
+						access.myAccessOperator = op;
+						access.myTemplate = stream.Consume();
+
+						if (!ParseIdExpression(stream, access.myIdExpression))
+							return false;
+					}
+
+				}
+
+				case tokenizer::Token::Type::PlusPlus:
+				case tokenizer::Token::Type::MinusMinus:
+
+					PostfixExpression_IncDec IncDec;
+					IncDec.myLeftHandSide
+
+					break;
+				default:
+					aOut = expr;
+					return true;
+			}
+		}
 	}
 
 	template<AssignableBy<NoexceptExpression> T>
@@ -442,7 +613,7 @@ namespace markup
 	{
 		UnaryExpression unaryExpression;
 
-		switch (stream.TokenType())
+		switch (aStream.TokenType())
 		{
 			case tokenizer::Token::Type::PlusPlus:
 			case tokenizer::Token::Type::MinusMinus:
@@ -455,10 +626,10 @@ namespace markup
 			{
 				TokenStream stream(aStream);
 				UnaryExpression_PrefixExpression prefix;
-				prefix.myOperator = &stream.Consume();
+				prefix.myOperator = stream.Consume();
 				prefix.myRightHandSide = std::make_shared<CastExpression>();
 
-				if (!ParseCastExpression(stream, prefix.myRightHandSide))
+				if (!ParseCastExpression(stream, *prefix.myRightHandSide))
 					return false;
 
 				unaryExpression = prefix;
@@ -514,7 +685,7 @@ namespace markup
 				break;
 
 			CastExpression_recurse recurse;
-			recurse.myOpeningParenthesis = &stream.Consume();
+			recurse.myOpeningParenthesis = stream.Consume();
 
 			if (!ParseTypeId(stream, recurse.myTypeId))
 				break;
@@ -559,7 +730,7 @@ namespace markup
 				break;
 
 			PMExpression next;
-			next.myDereferenceOperator = &stream.Consume();
+			next.myDereferenceOperator = stream.Consume();
 			next.myLeftHandSide = std::make_shared<PMExpression>(expr);
 
 			expr = next;
@@ -591,7 +762,7 @@ namespace markup
 				break;
 
 			MultiplicativeExpression next;
-			next.myMultiplicationOperator = &stream.Consume();
+			next.myMultiplicationOperator = stream.Consume();
 			next.myLeftHandSide = std::make_shared<MultiplicativeExpression>(expr);
 
 			expr = next;
@@ -622,7 +793,7 @@ namespace markup
 				break;
 
 			AddativeExpression next;
-			next.myAdditionOperator = &stream.Consume();
+			next.myAdditionOperator = stream.Consume();
 			next.myLeftHandSide = std::make_shared<AddativeExpression>(expr);
 
 			expr = next;
@@ -653,7 +824,7 @@ namespace markup
 				break;
 
 			ShiftExpression next;
-			next.myShiftOperator = &stream.Consume();
+			next.myShiftOperator = stream.Consume();
 			next.myLeftHandSide = std::make_shared<ShiftExpression>(expr);
 
 			expr = next;
@@ -686,7 +857,7 @@ namespace markup
 				break;
 
 			RelationalExpression next;
-			next.myRelationOperator = &stream.Consume();
+			next.myRelationOperator = stream.Consume();
 			next.myLeftHandSide = std::make_shared<RelationalExpression>(expr);
 
 			expr = next;
@@ -717,7 +888,7 @@ namespace markup
 				break;
 
 			EqualityExpression next;
-			next.myEqualityOperator = &stream.Consume();
+			next.myEqualityOperator = stream.Consume();
 			next.myLeftHandSide = std::make_shared<EqualityExpression>(expr);
 
 			expr = next;
@@ -742,7 +913,7 @@ namespace markup
 				break;
 
 			AndExpression next;
-			next.myAnd = &stream.Consume();
+			next.myAnd = stream.Consume();
 			next.myLeftHandSide = std::make_shared<AndExpression>(expr);
 
 			expr = next;
@@ -767,7 +938,7 @@ namespace markup
 				break;
 
 			ExclusiveOrExpression next;
-			next.myXor = &stream.Consume();
+			next.myXor = stream.Consume();
 			next.myLeftHandSide = std::make_shared<ExclusiveOrExpression>(expr);
 
 			expr = next;
@@ -792,7 +963,7 @@ namespace markup
 				break;
 
 			InclusiveOrExpression next;
-			next.myOr = &stream.Consume();
+			next.myOr = stream.Consume();
 			next.myLeftHandSide = std::make_shared<InclusiveOrExpression>(expr);
 
 			expr = next;
@@ -817,7 +988,7 @@ namespace markup
 				break;
 
 			LogicalAndExpression next;
-			next.myAndAnd = &stream.Consume();
+			next.myAndAnd = stream.Consume();
 			next.myLeftHandSide = std::make_shared<LogicalAndExpression>(expr);
 
 			expr = next;
@@ -842,7 +1013,7 @@ namespace markup
 				break;
 
 			LogicalOrExpression next;
-			next.myOrOr = &stream.Consume();
+			next.myOrOr = stream.Consume();
 			next.myLeftHandSide = std::make_shared<LogicalOrExpression>(expr);
 
 			expr = next;
@@ -870,7 +1041,7 @@ namespace markup
 				break;
 
 			Expression next;
-			next.myComma = &stream.Consume();
+			next.myComma = stream.Consume();
 			next.myLeftHandSide = std::make_shared<Expression>(expr);
 			
 			expr = next;
@@ -899,7 +1070,7 @@ namespace markup
 		}
 
 		expr.myOnTruthy = std::make_shared<Expression>();
-		expr.myQuestionMark = &stream.Consume();
+		expr.myQuestionMark = stream.Consume();
 		expr.myOnFalsy = std::make_shared<AssignmentExpression>();
 
 		if (!ParseExpression(stream, *expr.myOnTruthy))
@@ -908,7 +1079,7 @@ namespace markup
 		if (stream.TokenType() != tokenizer::Token::Type::Colon)
 			return false;
 
-		expr.myColon = &stream.Consume();
+		expr.myColon = stream.Consume();
 		
 		if (!ParseAssignmentExpression(stream, *expr.myOnFalsy))
 			return false;
@@ -967,12 +1138,12 @@ namespace markup
 		{
 			AttributeSpecifier attr;
 
-			attr.myOuterOpening = &stream.Consume();
+			attr.myOuterOpening = stream.Consume();
 
 			if (stream.TokenType() != tokenizer::Token::Type::L_Bracket)
 				return false;
 
-			attr.myInnerOpening = &stream.Consume();
+			attr.myInnerOpening = stream.Consume();
 
 			if (!ParseAttributeList(stream, attr.myAttributeList))
 				return false;
@@ -980,12 +1151,12 @@ namespace markup
 			if (stream.TokenType() != tokenizer::Token::Type::R_Bracket)
 				return false;
 
-			attr.myInnerClosing = &stream.Consume();
+			attr.myInnerClosing = stream.Consume();
 
 			if (stream.TokenType() != tokenizer::Token::Type::R_Bracket)
 				return false;
 
-			attr.myOuterClosing = &stream.Consume();
+			attr.myOuterClosing = stream.Consume();
 
 			aOut = attr;
 			aStream = stream;
@@ -997,12 +1168,12 @@ namespace markup
 		{
 			AlignmentSpecifier align;
 
-			align.myAlignas = &stream.Consume();
+			align.myAlignas = stream.Consume();
 
 			if (stream.TokenType() != tokenizer::Token::Type::L_Paren)
 				return false;
 
-			align.myOpeningParen = &stream.Consume();
+			align.myOpeningParen = stream.Consume();
 
 			if (!ParseTypeId(stream, align.myContent))
 				if (!ParseAssignmentExpression(stream, align.myContent))
@@ -1017,7 +1188,7 @@ namespace markup
 			if (stream.TokenType() != tokenizer::Token::Type::R_Paren)
 				return false;
 
-			align.myOpeningParen = &stream.Consume();
+			align.myOpeningParen = stream.Consume();
 			
 			aOut = align;
 			aStream = stream;

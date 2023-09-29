@@ -216,28 +216,35 @@ namespace markup
 		IdExpression,
 		LambdaExpression>;
 
+	struct InitializerList
+	{
+	};
+
 	struct PostfixExpression;
 
 	struct PostfixExpression_Subscript
 	{
 		NotNullPtr<PostfixExpression> myLeftHandSide;
 		const tokenizer::Token* myOpeningBracket = nullptr;
-		std::variant<NotNullPtr<Expression>, std::optional<BracedInitList>> myExpression;
+		std::variant<NotNullPtr<Expression>, std::optional<BracedInitList>> myAccess;
 		const tokenizer::Token* myClosingBracket = nullptr;
 	};
 
 	struct PostfixExpression_Call
 	{
-		std::variant<SimpleTypeSpecifier, TypenameSpecifier, NotNullPtr<PostfixExpression>> myLeftHandSide;
+		NotNullPtr<PostfixExpression> myLeftHandSide;
 		const tokenizer::Token* myOpeningBracket = nullptr;
 		std::optional<ExpressionList> myExpression;
 		const tokenizer::Token* myClosingBracket = nullptr;
 	};
 
-	struct PostfixExpression_BracedInitialization
+	struct PostfixExpression_Construct
 	{
 		std::variant<SimpleTypeSpecifier, TypenameSpecifier> myLeftHandSide;
-		BracedInitList myBracedInitializerList;
+
+		const tokenizer::Token* myOpener = nullptr; // ( {
+		InitializerList myArguments;
+		const tokenizer::Token* myCloser = nullptr; // ) }
 	};
 
 	struct PostfixExpression_Access
@@ -286,8 +293,7 @@ namespace markup
 			PrimaryExpression, 
 			PostfixExpression_Subscript, 
 			PostfixExpression_Call, 
-			PostfixExpression_Call, 
-			PostfixExpression_BracedInitialization, 
+			PostfixExpression_Construct, 
 			PostfixExpression_Access, 
 			PostfixExpression_Destruct, 
 			PostfixExpression_IncDec, 
@@ -321,7 +327,7 @@ namespace markup
 	{
 	};
 
-	using UnaryExpression = std::variant<PostfixExpression, UnaryExpression_PrefixExpression, UnaryExpression_sizeof, UnaryExpression_alignof, NoexceptExtression, NewExpression, DeleteExpression>;
+	using UnaryExpression = std::variant<PostfixExpression, UnaryExpression_PrefixExpression, UnaryExpression_sizeof, UnaryExpression_alignof, NoexceptExpression, NewExpression, DeleteExpression>;
 
 	struct CastExpression_recurse
 	{

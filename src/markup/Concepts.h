@@ -5,7 +5,7 @@
 namespace markup
 {
 	template<class LeftHand, class RightHand>
-	concept AssingableBy = requires(LeftHand lhs, RightHand rhs)
+	concept AssignableBy = requires(LeftHand lhs, RightHand rhs)
 	{
 		lhs = rhs;
 	};
