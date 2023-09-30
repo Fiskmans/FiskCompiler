@@ -488,14 +488,14 @@ namespace markup
 		if (!ParsePostfixExpression_nonrecurse(aStream, expr))
 			return false;
 
+		TokenStream stream(aStream);
+
 		while(true)
 		{
-			switch (aStream.TokenType())
+			switch (stream.TokenType())
 			{
 				case tokenizer::Token::Type::L_Bracket:
 				{
-					TokenStream& stream(aStream);
-
 					PostfixExpression_Subscript subscript;
 					subscript.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
 					subscript.myOpeningBracket = stream.Consume();
@@ -505,7 +505,7 @@ namespace markup
 
 					if (ParseExpression(stream, accessExpression))
 					{
-						subscript.myAccess = accessExpression
+						subscript.myAccess = accessExpression;
 					}
 					else if (ParseBracedInitList(stream, accessList))
 					{
@@ -521,13 +521,11 @@ namespace markup
 
 					subscript.myClosingBracket = stream.Consume();
 					expr = subscript;
-					aStream = stream;
 					break;
 				}
 
 				case tokenizer::Token::Type::L_Paren:
 				{
-					TokenStream& stream(aStream);
 					PostfixExpression_Call call;
 
 					call.myLeftHandSide = std::make_shared<PostfixExpression>();
@@ -546,15 +544,12 @@ namespace markup
 					call.myClosingParenthesis = stream.Consume();
 
 					expr = call;
-					aStream = stream;
 					break;
 				}
 
 				case tokenizer::Token::Type::Dot:
 				case tokenizer::Token::Type::Arrow:
 				{
-					TokenStream& stream(aStream);
-
 					const tokenizer::Token* op = stream.Consume();
 
 					PostfixExpression_Access access;
@@ -575,8 +570,10 @@ namespace markup
 				case tokenizer::Token::Type::MinusMinus:
 
 					PostfixExpression_IncDec IncDec;
-					IncDec.myLeftHandSide
+					IncDec.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
+					IncDec.myOperator = stream.Consume();
 
+					expr = IncDec;
 					break;
 				default:
 					aOut = expr;
