@@ -338,7 +338,7 @@ inline PreprocessorNumber Precompiler::EvalutateSequence(TokenCollection aTokens
 		const tokenizer::Token& tok = *it;
 		switch (tok.myType)
 		{
-		case tokenizer::Token::Type::Integer:
+		case tokenizer::Token::Type::Integer_literal:
 			precompiler_internal_math::AddValue(tok.EvaluateIntegral(), pendingOperators, values);
 			break;
 		case tokenizer::Token::Type::L_Paren: {

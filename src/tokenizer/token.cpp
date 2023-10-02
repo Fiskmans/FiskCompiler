@@ -103,9 +103,10 @@ namespace tokenizer
 			case Token::Type::Include_directive:	return "Include_directive";
 			case Token::Type::Header_name:			return "Header_name";
 
-			case Token::Type::Integer:				return "Integer";
+			case Token::Type::Integer_literal:		return "Integer";
 			case Token::Type::String_literal:		return "String_literal";
 			case Token::Type::Char_literal:			return "Char_literal";
+			case Token::Type::Floating_literal:		return "Floating_literal";
 
 			case Token::Type::kw_alignas:			return "kw_alignas";
 			case Token::Type::kw_alignof:			return "kw_alignof";

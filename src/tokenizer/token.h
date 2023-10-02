@@ -19,9 +19,10 @@ namespace tokenizer
 			Include_directive,
 			Header_name,
 
-			Integer,
+			Integer_literal,
 			String_literal,
 			Char_literal,
+			Floating_literal,
 
 			kw_alignas,
 			kw_alignof,

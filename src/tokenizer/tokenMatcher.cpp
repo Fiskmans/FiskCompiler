@@ -92,6 +92,9 @@ namespace tokenizer
 
 			virtual std::optional<size_t> Match(const std::string_view& aView) override
 			{
+				if (aView.empty())
+					return {};
+
 				if (myChars.find(aView[0]) != std::string::npos)
 					return 1;
 	
@@ -502,15 +505,23 @@ namespace tokenizer
 		using namespace pattern_combinations;
 		using namespace pattern_helpers;
 
-		std::shared_ptr<TokenMatcher::Pattern> nondigit				= "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"_any;
-		std::shared_ptr<TokenMatcher::Pattern> digit				= "0123456789"_any;
-		std::shared_ptr<TokenMatcher::Pattern> nonzero_digit		= "123456789"_any;
-		std::shared_ptr<TokenMatcher::Pattern> octal_digit			= "01234567"_any;
-		std::shared_ptr<TokenMatcher::Pattern> hexadecimal_digit	= "0123456789ABCDEFabcdef"_any;
-		std::shared_ptr<TokenMatcher::Pattern> escape_sequence		=	('\\'_c			and	"'\"?\\abfnrtv"_any	)													//simple-escape-sequence
-																	or	('\\'_c			and	octal_digit and Optionally(octal_digit) and Optionally(octal_digit))	//octal-escape-sequence
-																	or	("\\x"_exact	and hexadecimal_digit and Optionally(Repeat(hexadecimal_digit)));			//hexadecimal-escape-sequence;
-															   
+		std::shared_ptr<TokenMatcher::Pattern> nondigit						= "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"_any;
+		std::shared_ptr<TokenMatcher::Pattern> digit						= "0123456789"_any;
+		std::shared_ptr<TokenMatcher::Pattern> nonzero_digit				= "123456789"_any;
+		std::shared_ptr<TokenMatcher::Pattern> octal_digit					= "01234567"_any;
+		std::shared_ptr<TokenMatcher::Pattern> hexadecimal_digit			= "0123456789ABCDEFabcdef"_any;
+		std::shared_ptr<TokenMatcher::Pattern> escape_sequence				=	('\\'_c			and	"'\"?\\abfnrtv"_any	)													//simple-escape-sequence
+																			or	('\\'_c			and	octal_digit and Optionally(octal_digit) and Optionally(octal_digit))	//octal-escape-sequence
+																			or	("\\x"_exact	and hexadecimal_digit and Optionally(Repeat(hexadecimal_digit)));			//hexadecimal-escape-sequence;
+		
+		std::shared_ptr<TokenMatcher::Pattern> digitSequence				= digit and Optionally(Repeat(
+																				Optionally('\''_c)
+																				and digit));
+		
+		std::shared_ptr<TokenMatcher::Pattern> hexadecimalDigitSequence		= hexadecimal_digit and Optionally(Repeat(
+																				Optionally('\''_c)
+																				and hexadecimal_digit));
+
 	#pragma region keywords
 		BuildPattern(Token::Type::kw_alignas)			= "alignas"_exact;
 		BuildPattern(Token::Type::kw_alignof)			= "alignof"_exact;
@@ -683,7 +694,7 @@ namespace tokenizer
 
 		BuildPattern(Token::Type::WhiteSpace)			= Repeat(" \t\r\b"_any);
 
-		BuildPattern(Token::Type::Integer)				=	(	("0x"_nocase	and Optionally(Repeat(Optionally('\''_c) and hexadecimal_digit)))
+		BuildPattern(Token::Type::Integer_literal)		=	(	("0x"_nocase	and Optionally(Repeat(Optionally('\''_c) and hexadecimal_digit)))
 															or	('0'_c			and Optionally(Repeat(Optionally('\''_c) and octal_digit)))
 															or	("0b"_nocase	and Optionally(Repeat(Optionally('\''_c) and "01"_any)))
 															or	(nonzero_digit	and Optionally(Repeat(Optionally('\''_c) and "0123456789"_any))))
@@ -713,6 +724,16 @@ namespace tokenizer
 																"\\\'\n"_notof
 															or	escape_sequence)
 														and '\''_c;
+		BuildPattern(Token::Type::Floating_literal)		=	(Optionally(digitSequence)
+																and '.'_c
+																and digitSequence
+																and Optionally("eE"_any and Optionally("+-"_any) and digitSequence)
+																and "flFL"_any)
+														or	(Optionally(hexadecimalDigitSequence)
+																and '.'_c
+																and hexadecimalDigitSequence
+																and Optionally("eE"_any and Optionally("+-"_any) and hexadecimalDigitSequence)
+																and "flFL"_any);
 	}
 
 	TokenMatcher::PatternBuilder::PatternBuilder(Token::Type aType, std::vector<std::shared_ptr<RootPattern>>& aRootPatternCollection)
