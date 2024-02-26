@@ -625,7 +625,7 @@ namespace tokenizer
 		//						  kw_new				= "new"_exact;		//also a keyword
 		//						  kw_delete				= "delete"_exact;	//also a keyword
 		BuildPattern(Token::Type::Question)				= '?'_c;
-		BuildPattern(Token::Type::Colon_colon)			= "::"_exact;
+		BuildPattern(Token::Type::ColonColon)			= "::"_exact;
 		BuildPattern(Token::Type::Dot)					= '.'_c;
 		BuildPattern(Token::Type::DotStar)				= ".*"_exact;
 		BuildPattern(Token::Type::Arrow)				= "->"_exact;

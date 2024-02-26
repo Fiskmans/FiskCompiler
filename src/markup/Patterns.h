@@ -1,7 +1,7 @@
 #ifndef COMPILER_PATTERNS_H
 #define COMPILER_PATTERNS_H
 
-#include "Pattern.h"
+#include "markup/Pattern.h"
 
 #include <vector>
 #include <iostream>
@@ -71,11 +71,22 @@ namespace markup
 		const tokenizer::Token* mySemicolon = nullptr;
 	};
 
+	struct BalancedToken_Braced;
+
+	using BalancedToken = std::variant<BalancedToken_Braced, const tokenizer::Token*>;
+
+	struct BalancedToken_Braced
+	{
+		const tokenizer::Token* myOpener = nullptr;
+		NotNullPtr<BalancedToken> myContent = nullptr;
+		const tokenizer::Token* myCloser = nullptr;
+	};
+
 	struct AttributeArgumentClause
 	{
 		const tokenizer::Token* myOpeningParenthesis = nullptr;
 
-		std::vector<const tokenizer::Token*> myBalancedTokenSequence;
+		std::vector<BalancedToken> myBalancedTokenSequence;
 
 		const tokenizer::Token* myClosingParenthesis = nullptr;
 	};
@@ -83,19 +94,17 @@ namespace markup
 	struct Attribute
 	{
 		const tokenizer::Token* myAttributeNamespace = nullptr;
-		
 		const tokenizer::Token* myColonColon = nullptr;
 
 		Identifier myIdentifier = nullptr;
 
+		const tokenizer::Token* myEllipsis = nullptr;
 		std::optional<AttributeArgumentClause> myArgumentClause;
 	};
 
 	struct AttributeList
 	{
-		std::vector<Attribute> myAttributes;
-
-		const tokenizer::Token* myEllipsis = nullptr;
+		std::vector<std::variant<Attribute,nullptr_t>> myAttributes;
 	};
 
 	struct NestedNameSpecifier
@@ -525,9 +534,11 @@ namespace markup
 			EmptyDeclaration,
 			AttributeDeclaration>;
 
+	struct TemplateType;
+
 	struct TypeParameter
 	{
-		MaybeNullPtr<TemplateType> myBaseTemplateType; // exlusive with myClassOrTypename being typename
+		MaybeNullPtr<TemplateType> myBaseTemplateType;
 		const tokenizer::Token* myClassOrTypename = nullptr;
 		const tokenizer::Token* myEllipsis = nullptr; // exclusive with default
 		Identifier myIdentifer = nullptr;
@@ -620,6 +631,7 @@ namespace markup
 	void operator<<(std::ostream& aStream, const LinkageSpecification& aDeclaration);
 	void operator<<(std::ostream& aStream, const NamespaceDefinition& aDeclaration);
 	void operator<<(std::ostream& aStream, const EmptyDeclaration& aDeclaration);
+	void operator<<(std::ostream& aStream, const BalancedToken& aBalancedToken);
 	void operator<<(std::ostream& aStream, const Attribute& aAttribute);
 	void operator<<(std::ostream& aStream, const AttributeDeclaration& aDeclaration);
 	void operator<<(std::ostream& aStream, const TypeId& aTypeId);

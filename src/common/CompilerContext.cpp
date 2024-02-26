@@ -15,6 +15,7 @@ std::vector<std::filesystem::path> CompilerContext::myAdditionalDirectories;
 std::vector<std::string> CompilerContext::myPrintContext;
 std::stack<std::vector<std::string>> CompilerContext::myPrintContextStack;
 std::stack<std::filesystem::path> CompilerContext::myFileStack;
+size_t CompilerContext::myIgnoreDepth = 0;
 bool CompilerContext::myHasErrors = false;
 size_t CompilerContext::myCurrentLine = 0;
 std::unordered_map<std::string, std::string> CompilerContext::myFlags;
@@ -66,6 +67,8 @@ void CompilerContext::EmitWarning(const std::string& aMessage, const tokenizer::
 
 void CompilerContext::EmitWarning(const std::string& aMessage,std::filesystem::path aFile, size_t aColumn, size_t aLine, size_t aSize)
 {
+	if (myIgnoreDepth > 0)
+		return;
 
 #if _WIN32
 	std::cout << std::flush;
@@ -151,6 +154,9 @@ void CompilerContext::EmitError(const std::string& aMessage, const tokenizer::To
 
 void CompilerContext::EmitError(const std::string& aMessage, std::filesystem::path aFile, size_t aColumn, size_t aLine, size_t aSize)
 {
+	if (myIgnoreDepth > 0)
+		return;
+
 	myHasErrors = true;
 	
 #if _WIN32
@@ -489,4 +495,20 @@ std::optional<const std::string> CompilerContext::GetFlag(const std::string_view
 bool CompilerContext::IsWarningEnabled(const std::string& aWarning)
 {
 	return myWarningSwitches.IsEnabled(aWarning);
+}
+
+CompilerContext::IgnoreHandle CompilerContext::IgnoreErrors()
+{
+	return IgnoreHandle(myIgnoreDepth);
+}
+
+CompilerContext::IgnoreHandle::IgnoreHandle(size_t& aIgnoreDepthPtr)
+	: myIgnoreDepth(aIgnoreDepthPtr)
+{
+	myIgnoreDepth++;
+}
+
+CompilerContext::IgnoreHandle::~IgnoreHandle()
+{
+	myIgnoreDepth--;
 }

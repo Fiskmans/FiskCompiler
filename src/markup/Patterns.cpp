@@ -2,6 +2,10 @@
 #include "markup/Patterns.h"
 #include "markup/Concepts.h"
 
+#include "common/Utility.h"
+
+#include <numeric>
+
 namespace markup 
 {
 	class TokenStream
@@ -29,27 +33,98 @@ namespace markup
 			return *myBegin;
 		}
 
-		tokenizer::Token::Type
-		TokenType()
+		bool PeekType(tokenizer::Token::Type aType)
 		{
 			if (Empty())
-			{
-				CompilerContext::EmitError("Unexpected eof");
-				return tokenizer::Token::Type::Invalid;
-			}
-			return myBegin->myType;
+				return false;
+
+			return myBegin->myType == aType;
 		}
 
-		const tokenizer::Token* Consume()
+		bool PeekAnyType(const std::vector<tokenizer::Token::Type>& aTypes)
 		{
 			if (Empty())
+				return false;
+
+			return std::find(aTypes.begin(), aTypes.end(), myBegin->myType) != aTypes.end();
+		}
+
+		bool Peek(tokenizer::Token::Type aType, const tokenizer::Token*& aOutPtr)
+		{
+			if (Empty())
+				return false;
+
+			if (myBegin->myType != aType)
+				return false;
+
+			aOutPtr = &*myBegin;
+			return true;
+		}
+
+		bool PeekAny(const std::vector<tokenizer::Token::Type>& aTypes, const tokenizer::Token*& aOutPtr)
+		{
+			if (Empty())
+				return false;
+
+			if (std::find(aTypes.begin(), aTypes.end(), myBegin->myType) == aTypes.end())
+				return false;	
+
+			aOutPtr = &*myBegin;
+			return true;
+		}
+
+		bool Consume(tokenizer::Token::Type aType, const tokenizer::Token*& aOutPtr, const tokenizer::Token* aHintIfError = nullptr)
+		{
+			if (!Peek(aType, aOutPtr))
 			{
-				CompilerContext::EmitError("Unexpected eof");
-				return &tokenizer::Token::SafetyToken;
+				CompilerContext::EmitError("Expected " + tokenizer::Token::TypeToString(aType), *myBegin);
+				if (aHintIfError)
+					CompilerContext::EmitError("Hint: ", *aHintIfError);
+				return false;
 			}
-			iterator out = myBegin;
+
 			myBegin++;
-			return &*out;
+			return true;
+		}
+
+		bool ConsumeAnyOptional(const std::vector<tokenizer::Token::Type>& aTypes, const tokenizer::Token*& aOutPtr)
+		{
+			if (!PeekAny(aTypes, aOutPtr))
+				return false;
+
+			myBegin++;
+			return true;
+		}
+
+		bool ConsumeOptional(tokenizer::Token::Type aType, const tokenizer::Token*& aOutPtr)
+		{
+			if (!Peek(aType, aOutPtr))
+				return false;
+
+			myBegin++;
+			return true;
+		}
+
+		bool UnconditionalConsume(const tokenizer::Token*& aOutPtr)
+		{
+			if (Empty())
+				return false;
+
+			aOutPtr = &*myBegin;
+			myBegin++;
+			return true;
+		}
+
+		bool ConsumeAny(const std::vector<tokenizer::Token::Type>& aTypes, const tokenizer::Token*& aOutPtr)
+		{
+			if (!PeekAny(aTypes, aOutPtr))
+			{
+				CompilerContext::EmitError("Expected any of " + common::Join(aTypes | tokenizer::token_helpers::AsString), *myBegin);
+				return false;
+			}
+
+			myBegin++;
+			return true;
 		}
 
 	private:
@@ -70,6 +145,7 @@ namespace markup
 	bool ParseRBraceTerminatedDeclarations(TokenStream& aStream, std::vector<Declaration>& aOutDeclarations);
 	template<AssignableBy<NamespaceDefinition> T>
 	bool ParseNamespaceDefinition(TokenStream& aStream, T& aOut);
+	bool ParseTemplateType(TokenStream& aStream, TemplateType& aOut);
 
 
 	template<AssignableBy<BlockDeclaration> T>
@@ -93,7 +169,7 @@ namespace markup
 		TypeParameter type;
 		TokenStream stream(aStream);
 
-		if (stream.TokenType() == tokenizer::Token::Type::kw_template)
+		if (stream.PeekType(tokenizer::Token::Type::kw_template))
 		{
 			TemplateType templateType;
 			if (!ParseTemplateType(stream, templateType))
@@ -102,35 +178,11 @@ namespace markup
 			type.myBaseTemplateType = std::make_shared<TemplateType>(templateType);
 		}
 
-		switch (stream.TokenType())
-		{
-			case tokenizer::Token::Type::kw_typename:
-				if (type.myBaseTemplateType)
-				{
-					CompilerContext::EmitError("Expected class", stream.Token());
-					return false;
-				}
-			case tokenizer::Token::Type::kw_class:
-				type.myClassOrTypename = stream.Consume();
-				break;
-			default:
-				if (type.myBaseTemplateType)
-				{
-					CompilerContext::EmitError("Expected class", stream.Token());
-				}
-				else
-				{
-					CompilerContext::EmitError("Expected class or typename", stream.Token());
-				}
-				return false;
-		}
+		if (!stream.ConsumeAny({ tokenizer::Token::Type::kw_typename,tokenizer::Token::Type::kw_class }, type.myClassOrTypename))
+			return false;
 
-		if (stream.TokenType() == tokenizer::Token::Type::Ellipsis)
-			type.myEllipsis = stream.Consume();
-
-
-
-
+		stream.Consume(tokenizer::Token::Type::Ellipsis, type.myEllipsis);
+		stream.Consume(tokenizer::Token::Type::Identifier, type.myIdentifer);
 
 		// TODO
 		return false;
@@ -151,13 +203,12 @@ namespace markup
 
 	bool ParseTemplateType(TokenStream& aStream, TemplateType& aOut)
 	{
-		if (aStream.TokenType() != tokenizer::Token::Type::kw_template)
+		TokenStream stream(aStream);
+
+		if (!stream.Consume(tokenizer::Token::Type::kw_template, aOut.myTemplate))
 			return false;
 
-		TokenStream stream(aStream);
-		aOut.myTemplate = stream.Consume();
-		
-		if (stream.TokenType() != tokenizer::Token::Type::Less)
+		if (!stream.ConsumeOptional(tokenizer::Token::Type::Less, aOut.myOpening))
 			return false;
 
 		do
@@ -168,18 +219,16 @@ namespace markup
 
 			aOut.myParamaters.push_back(parameter);
 
-			if (stream.TokenType() == tokenizer::Token::Type::Comma)
-			{
-				stream.Consume();
+			CompilerContext::IgnoreHandle handle = CompilerContext::IgnoreErrors();
+
+			const tokenizer::Token* dummy;
+			if (stream.Consume(tokenizer::Token::Type::Comma, dummy))
 				continue;
-			}
 
 		} while(false);
 
-		if (stream.TokenType() != tokenizer::Token::Type::Greater)
+		if (!stream.Consume(tokenizer::Token::Type::Greater, aOut.myClosing))
 			return false;
-
-		aOut.myClosing = stream.Consume();
 
 		aStream = stream;
 
@@ -189,7 +238,7 @@ namespace markup
 	template<AssignableBy<TemplateDeclaration> T>
 	bool ParseTemplateDeclaration(TokenStream& aStream, T& aOut)
 	{
-		if (aStream.TokenType() != tokenizer::Token::Type::kw_template)
+		if (!aStream.PeekType(tokenizer::Token::Type::kw_template))
 			return false;
 
 		TokenStream stream(aStream);
@@ -217,13 +266,10 @@ namespace markup
 		ExplicitInstantiation explicitInstantiation;
 		TokenStream stream(aStream);
 		
-		if (stream.TokenType() == tokenizer::Token::Type::kw_extern)
-			explicitInstantiation.myExtern = stream.Consume();
+		stream.ConsumeOptional(tokenizer::Token::Type::kw_extern, explicitInstantiation.myExtern);
 
-		if (stream.TokenType() != tokenizer::Token::Type::kw_template)
+		if (!stream.ConsumeOptional(tokenizer::Token::Type::kw_template, explicitInstantiation.myTemplate))
 			return false;
-
-		explicitInstantiation.myTemplate = stream.Consume();
 
 		Declaration decl;
 
@@ -241,26 +287,17 @@ namespace markup
 	template<AssignableBy<ExplicitSpecialization> T>
 	bool ParseExplicitSpecialization(TokenStream& aStream, T& aOut)
 	{
-		if (aStream.TokenType() != tokenizer::Token::Type::kw_template)
-			return false;
-
 		ExplicitSpecialization explicitSpecialization;
 		TokenStream& stream(aStream);
 
-		explicitSpecialization.myTemplate = stream.Consume();
-
-		if (stream.TokenType() != tokenizer::Token::Type::Less)
-		{
-			CompilerContext::EmitError("Expected <", stream.Token());
-			return false;
-		}
-
-		explicitSpecialization.myOpening = stream.Consume();
-
-		if (stream.TokenType() != tokenizer::Token::Type::Greater)
+		if (!stream.ConsumeOptional(tokenizer::Token::Type::kw_template, explicitSpecialization.myTemplate))
 			return false;
 
-		explicitSpecialization.myClosing = stream.Consume();
+		if (!stream.Consume(tokenizer::Token::Type::Less, explicitSpecialization.myOpening))
+			return false;
+
+		if (!stream.Consume(tokenizer::Token::Type::Greater, explicitSpecialization.myClosing))
+			return false;
 
 		Declaration decl;
 		if (!ParseDeclaration(stream, decl))
@@ -280,39 +317,25 @@ namespace markup
 	template<AssignableBy<LinkageSpecification> T>
 	bool ParseLinkageSpecification(TokenStream& aStream, T& aOut)
 	{
-		if (aStream.TokenType() != tokenizer::Token::Type::kw_extern)
-			return false;
-
 		TokenStream stream(aStream);
-
 		LinkageSpecification linkage;
 
-		linkage.myExtern = stream.Consume();
-
-		if (stream.TokenType() != tokenizer::Token::Type::String_literal)
-		{
-			CompilerContext::EmitError("Expected string literal", stream.Token());
+		if (!stream.ConsumeOptional(tokenizer::Token::Type::kw_extern, linkage.myExtern))
 			return false;
-		}
 
-		linkage.myString = stream.Consume();
+		if (!stream.Consume(tokenizer::Token::Type::String_literal, linkage.myString))
+			return false;
 
-		if (stream.TokenType() == tokenizer::Token::Type::L_Brace)
+
+		LinkageSpecification_block block;
+
+		if (stream.Peek(tokenizer::Token::Type::L_Brace, block.myOpeningBrace))
 		{
-			LinkageSpecification_block block;
-			block.myOpeningBrace = stream.Consume();
-
 			if (!ParseRBraceTerminatedDeclarations(stream, block.myDeclarations))
 				return false;
 
-			if (stream.TokenType() != tokenizer::Token::Type::R_Brace)
-			{
-				CompilerContext::EmitError("Expected }", stream.Token());
-				CompilerContext::EmitError("To close LinkageSpecification", *linkage.myExtern);
+			if (!stream.Consume(tokenizer::Token::Type::R_Brace, block.myClosingBrace))
 				return false;
-			}
-
-			block.myClosingBrace = stream.Consume();
 
 			linkage.myDeclaration = block;
 		}
@@ -367,8 +390,11 @@ namespace markup
 	{
 		TokenStream& stream(aStream);
 
-		while (stream.TokenType() != tokenizer::Token::Type::R_Brace)
+		while (!stream.PeekType(tokenizer::Token::Type::R_Brace))
 		{
+			if (stream.Empty())
+				return false;
+
 			Declaration decl;
 
 			if (!ParseDeclaration(stream, decl))
@@ -387,33 +413,25 @@ namespace markup
 	template<AssignableBy<NamespaceDefinition> T>
 	bool ParseNamespaceDefinition(TokenStream& aStream, T& aOut)
 	{
-
 		NamespaceDefinition namespaceDefinition;
 		TokenStream stream(aStream);
 
-		if (stream.TokenType() == tokenizer::Token::Type::kw_inline)
-			namespaceDefinition.myInline = stream.Consume();
+		stream.ConsumeOptional(tokenizer::Token::Type::kw_inline, namespaceDefinition.myInline);
 
-		if (stream.TokenType() != tokenizer::Token::Type::kw_namespace)
+		if (!stream.ConsumeOptional(tokenizer::Token::Type::kw_namespace, namespaceDefinition.myNamespace))
 			return false;
 
-		namespaceDefinition.myNamespace = stream.Consume();
+		stream.ConsumeOptional(tokenizer::Token::Type::Identifier, namespaceDefinition.myIdentifier);
 
-		if (stream.TokenType() == tokenizer::Token::Type::Identifier)
-			namespaceDefinition.myIdentifier = stream.Consume();
-
-		if (stream.TokenType() != tokenizer::Token::Type::L_Brace)
-		{
-			CompilerContext::EmitError("Expected {", stream.Token());
+		if (!stream.Consume(tokenizer::Token::Type::L_Brace, namespaceDefinition.myOpeningBrace))
 			return false;
-		}
-
-		namespaceDefinition.myOpeningBrace = stream.Consume();
 
 		if (!ParseRBraceTerminatedDeclarations(stream, namespaceDefinition.myDeclarations))
 			return false;
 
-		namespaceDefinition.myClosingBrace = stream.Consume();
+		if (!stream.Consume(tokenizer::Token::Type::R_Brace, namespaceDefinition.myClosingBrace, namespaceDefinition.myOpeningBrace))
+			return false;
+
 		aOut = namespaceDefinition;
 		aStream = stream;
 
@@ -424,13 +442,64 @@ namespace markup
 	template<AssignableBy<EmptyDeclaration> T>
 	bool ParseEmptyDeclaration(TokenStream& aStream, T& aOut)
 	{
-		if (aStream.TokenType() != tokenizer::Token::Type::Semicolon)
+		EmptyDeclaration empty;
+
+		if (!aStream.ConsumeOptional(tokenizer::Token::Type::Semicolon, empty.mySemicolon))
 			return false;
 
-		EmptyDeclaration temp;
-		temp.mySemicolon = aStream.Consume();
+		aOut = empty;
+		return true;
+	}
 
-		aOut = temp;
+	template<AssignableBy<BalancedToken> T>
+	bool ParseBalancedToken(TokenStream& aStream, T& aOut)
+	{
+		TokenStream stream(aStream);
+		BalancedToken balancedToken;
+		BalancedToken_Braced braced;
+
+		const tokenizer::Token* token;
+
+		if (stream.PeekAny({
+				tokenizer::Token::Type::L_Paren,
+				tokenizer::Token::Type::L_Bracket,
+				tokenizer::Token::Type::L_Brace
+			}, token))
+		{
+			braced.myOpener = token;
+
+			BalancedToken inner;
+			if (!ParseBalancedToken(stream, inner))
+				return false;
+
+			braced.myContent = std::make_shared<BalancedToken>(inner);
+
+			switch (token->myType)
+			{
+			case tokenizer::Token::Type::L_Paren:
+				if (!stream.Consume(tokenizer::Token::Type::R_Paren, braced.myCloser))
+					return false;
+				break;
+			case tokenizer::Token::Type::L_Bracket:
+				if (!stream.Consume(tokenizer::Token::Type::R_Bracket, braced.myCloser))
+					return false;
+				break;
+			case tokenizer::Token::Type::L_Brace:
+				if (!stream.Consume(tokenizer::Token::Type::R_Brace, braced.myCloser))
+					return false;
+				break;
+			}
+
+			balancedToken = braced;
+		}
+		else
+		{
+			balancedToken = token;
+		}
+
+		aOut = balancedToken;
+		aStream = stream;
+
 		return true;
 	}
 
@@ -438,47 +507,22 @@ namespace markup
 	bool ParseAttributeArgumentClause(TokenStream& aStream, T& aOut)
 	{
 		TokenStream stream(aStream);
-
 		AttributeArgumentClause clause;
 
-		if (stream.TokenType() != tokenizer::Token::Type::L_Paren)
+		if (stream.Consume(tokenizer::Token::Type::L_Paren, clause.myOpeningParenthesis))
 			return false;
 
-		clause.myOpeningParenthesis = stream.Consume();
-
-		if (stream.TokenType() == tokenizer::Token::Type::R_Paren)
-			return false;
-
-		std::stack<tokenizer::Token::Type> closers;
-		closers.push(tokenizer::Token::Type::R_Paren);
-
-		while (!closers.empty())
+		while (true)
 		{
-			switch (stream.TokenType())
-			{
-				case tokenizer::Token::Type::L_Paren:
-					closers.push(tokenizer::Token::Type::R_Paren);
-					break;
-				case tokenizer::Token::Type::L_Bracket:
-					closers.push(tokenizer::Token::Type::R_Bracket);
-					break;
-				case tokenizer::Token::Type::L_Brace:
-					closers.push(tokenizer::Token::Type::R_Brace);
-					break;
-				case tokenizer::Token::Type::R_Paren:
-				case tokenizer::Token::Type::R_Bracket:
-				case tokenizer::Token::Type::R_Brace:
-					if (closers.top() != stream.TokenType())
-						return false;
-					closers.pop();
-					break;
-			}
+			BalancedToken balanced;
+			if (!ParseBalancedToken(stream, balanced))
+				return false;
 
-			if (!closers.empty())
-				clause.myBalancedTokenSequence.push_back(stream.Consume());
+			clause.myBalancedTokenSequence.push_back(balanced);
+
+			if (stream.ConsumeOptional(tokenizer::Token::Type::R_Paren, clause.myClosingParenthesis))
+				break;
 		}
-
-		clause.myClosingParenthesis = stream.Consume();
 
 		aOut = clause;
 		aStream = stream;
@@ -491,19 +535,16 @@ namespace markup
 	{
 		TokenStream stream(aStream);
 
-		if (stream.TokenType() != tokenizer::Token::Type::Identifier)
+		const tokenizer::Token* firstIdentifier;
+
+		if (!stream.Consume(tokenizer::Token::Type::Identifier, firstIdentifier))
 			return false;
 
-		const tokenizer::Token* firstIdentifier = stream.Consume();
-
-		if (stream.TokenType() == tokenizer::Token::Type::Colon_colon)
+		if (stream.ConsumeOptional(tokenizer::Token::Type::ColonColon, aOut.myColonColon))
 		{
 			aOut.myAttributeNamespace = firstIdentifier;
-			aOut.myColonColon = stream.Consume();
-			if (stream.TokenType() != tokenizer::Token::Type::Identifier)
+			if (!stream.Consume(tokenizer::Token::Type::Identifier, aOut.myIdentifier))
 				return false;
-
-			aOut.myIdentifier = stream.Consume();
 		}
 		else
 		{
@@ -524,30 +565,24 @@ namespace markup
 
 		while (true)
 		{
-			if (stream.TokenType() == tokenizer::Token::Type::Ellipsis)
-			{
-				if (aOut.myAttributes.empty())
-					return false;
-
-				aOut.myEllipsis = &stream.Token();
-				stream.Consume();
-				break;
-			}
-
-			if (stream.TokenType() != tokenizer::Token::Type::Identifier)
-				break;
-
 			Attribute attr;
 
-			if (!ParseAttribute(stream, attr))
-				return false;
+			if (ParseAttribute(stream, attr))
+			{
+				if (stream.ConsumeOptional(tokenizer::Token::Type::Ellipsis, attr.myEllipsis))
+					break;
 
-			aOut.myAttributes.push_back(attr);
+				aOut.myAttributes.push_back(attr);
+			}
+			else
+			{
+				aOut.myAttributes.push_back(nullptr);
+			}
 
-			if (stream.TokenType() != tokenizer::Token::Type::Comma)
+			const tokenizer::Token* comma;
+
+			if (stream.ConsumeOptional(tokenizer::Token::Type::Comma, comma))
 				break;
-
-			stream.Consume();
 		}
 
 		aStream = stream;
@@ -568,7 +603,7 @@ namespace markup
 		return false;
 	}
 
-	bool ParseSimpleTamplateId(TokenStream& aStream, SimpleTemplateId& aOut)
+	bool ParseSimpleTemplateId(TokenStream& aStream, SimpleTemplateId& aOut)
 	{
 		// TODO
 		return false;
@@ -579,17 +614,19 @@ namespace markup
 		TokenStream stream(aStream);
 		SimpleTemplateId templateId;
 
-		if (stream.TokenType() != tokenizer::Token::Type::Identifier)
-			return false;
-
-		if (ParseSimpleTamplateId(stream, templateId))
+		if (ParseSimpleTemplateId(stream, templateId))
 		{
 			aOut = templateId;
 			aStream = stream;
 			return true;
 		}
 
-		aOut = stream.Consume();
+		Identifier identifier;
+
+		if (!stream.Consume(tokenizer::Token::Type::Identifier, identifier))
+			return false;
+
+		aOut = identifier;
 		aStream = stream;
 
 		return true;
@@ -600,54 +637,52 @@ namespace markup
 	{
 		TokenStream stream(aStream);
 		SimpleTypeSpecifier simpleTypeSpecifier;
-		switch (stream.TokenType())
-		{
-			case tokenizer::Token::Type::kw_char:
-			case tokenizer::Token::Type::kw_char16_t:
-			case tokenizer::Token::Type::kw_char32_t:
-			case tokenizer::Token::Type::kw_wchar_t:
-			case tokenizer::Token::Type::kw_bool:
-			case tokenizer::Token::Type::kw_short:
-			case tokenizer::Token::Type::kw_int:
-			case tokenizer::Token::Type::kw_long:
-			case tokenizer::Token::Type::kw_signed:
-			case tokenizer::Token::Type::kw_unsigned:
-			case tokenizer::Token::Type::kw_float:
-			case tokenizer::Token::Type::kw_double:
-			case tokenizer::Token::Type::kw_void:
-			case tokenizer::Token::Type::kw_auto:
-			{
-				SimpleTypeSpecifier_Builtin builtin;
-				builtin.myType = stream.Consume();
+		SimpleTypeSpecifier_Builtin builtin;
 
-				simpleTypeSpecifier = builtin;
-				aOut = simpleTypeSpecifier;
-				aStream = stream;
-				return true;
-			} 
-			case tokenizer::Token::Type::kw_decltype:
-			{
-				DecltypeSpecifier declType;
-				if (!ParseDeclTypeSpecifier(stream, declType))
-					return false;
-				
-				simpleTypeSpecifier = declType;
-				aOut = simpleTypeSpecifier;
-				aStream = stream;
-				return true;
-			}
+		if (stream.ConsumeAnyOptional({
+			tokenizer::Token::Type::kw_char,
+			tokenizer::Token::Type::kw_char16_t,
+			tokenizer::Token::Type::kw_char32_t,
+			tokenizer::Token::Type::kw_wchar_t,
+			tokenizer::Token::Type::kw_bool,
+			tokenizer::Token::Type::kw_short,
+			tokenizer::Token::Type::kw_int,
+			tokenizer::Token::Type::kw_long,
+			tokenizer::Token::Type::kw_signed,
+			tokenizer::Token::Type::kw_unsigned,
+			tokenizer::Token::Type::kw_float,
+			tokenizer::Token::Type::kw_double,
+			tokenizer::Token::Type::kw_void,
+			tokenizer::Token::Type::kw_auto },
+			builtin.myType))
+		{
+			simpleTypeSpecifier = builtin;
+			aOut = simpleTypeSpecifier;
+			aStream = stream;
+			return true;
+		}
+
+		if (stream.PeekType(tokenizer::Token::Type::kw_decltype))
+		{
+			DecltypeSpecifier declType;
+			if (!ParseDeclTypeSpecifier(stream, declType))
+				return false;
+
+			simpleTypeSpecifier = declType;
+			aOut = simpleTypeSpecifier;
+			aStream = stream;
+			return true;
 		}
 
 		const tokenizer::Token* colonColon = nullptr;
 
-		if (stream.TokenType() == tokenizer::Token::Type::Colon_colon)
-			colonColon = stream.Consume();
+		stream.ConsumeOptional(tokenizer::Token::Type::ColonColon, colonColon);
 
 		std::optional<NestedNameSpecifier> nestedNameSpecifer;
 
 		ParseNestedNameSpecifier(stream, nestedNameSpecifer);
 
-		if (stream.TokenType() == tokenizer::Token::Type::kw_template)
+		if (stream.PeekType(tokenizer::Token::Type::kw_template))
 		{
 			if (!nestedNameSpecifer)
 				return false;
@@ -657,7 +692,7 @@ namespace markup
 			templatedTypename.myColonColon = colonColon;
 			templatedTypename.myNameSpecifier = *nestedNameSpecifer;
 
-			if (!ParseSimpleTamplateId(stream, templatedTypename.mySimpleTemplateId))
+			if (!ParseSimpleTemplateId(stream, templatedTypename.mySimpleTemplateId))
 				return false;
 
 			simpleTypeSpecifier = templatedTypename;
@@ -761,10 +796,8 @@ namespace markup
 		TokenStream stream(aStream);
 		PrimaryExpression_Parenthesis parenthesis;
 
-		if (stream.TokenType() != tokenizer::Token::Type::L_Paren)
+		if (stream.Consume(tokenizer::Token::Type::L_Paren, parenthesis.myOpeningParenthesis))
 			return false;
-
-		parenthesis.myOpeningParenthesis = stream.Consume();
 
 		Expression content;
 		if (!ParseExpression(stream, content))
@@ -772,10 +805,9 @@ namespace markup
 
 		parenthesis.myExpression = std::make_shared<Expression>(content);
 
-		if (stream.TokenType() != tokenizer::Token::Type::R_Paren)
+		if (stream.Consume(tokenizer::Token::Type::R_Paren, parenthesis.myClosingParenthesis))
 			return false;
 
-		parenthesis.myClosingParenthesis = stream.Consume();
 		aStream = stream;
 		aOut = parenthesis;
 
@@ -784,25 +816,32 @@ namespace markup
 
 	bool ParsePrimaryExpression(TokenStream& aStream, PrimaryExpression& aOut)
 	{
-		switch (aStream.TokenType())
+		TokenStream stream(aStream);
+		const tokenizer::Token* token;
+
+		if (stream.ConsumeAnyOptional({
+			tokenizer::Token::Type::kw_this,
+			tokenizer::Token::Type::Integer_literal,
+			tokenizer::Token::Type::Char_literal,
+			tokenizer::Token::Type::String_literal,
+			tokenizer::Token::Type::kw_true,
+			tokenizer::Token::Type::kw_false,
+			tokenizer::Token::Type::kw_nullptr,
+			tokenizer::Token::Type::Floating_literal },
+			token))
 		{
-			case tokenizer::Token::Type::kw_this:
-			case tokenizer::Token::Type::Integer_literal:
-			case tokenizer::Token::Type::Char_literal:
-			case tokenizer::Token::Type::String_literal:
-			case tokenizer::Token::Type::kw_true:
-			case tokenizer::Token::Type::kw_false:
-			case tokenizer::Token::Type::kw_nullptr:
-			case tokenizer::Token::Type::Floating_literal:
-				aOut = aStream.Consume();
-				return true;
-			case tokenizer::Token::Type::L_Paren:
-				if (!ParsePrimaryExpression_parenthesis(aStream, aOut))
-					return false;
-				return true;
+			aOut = token;
+			aStream = stream;
+
+			return true;
 		}
 
-		TokenStream stream(aStream);
+		if (stream.PeekType(tokenizer::Token::Type::L_Paren))
+		{
+			if (!ParsePrimaryExpression_parenthesis(aStream, aOut))
+				return false;
+			return true;
+		}
 
 		IdExpression idExpression;
 		if (ParseIdExpression(stream, idExpression))
@@ -825,46 +864,42 @@ namespace markup
 
 	bool ParsePostfixExpression_nonrecurse(markup::TokenStream& aStream, markup::PostfixExpression& aOut)
 	{
-		switch (aStream.TokenType())
+		TokenStream stream(aStream);
+
+		if (stream.PeekAnyType({
+			tokenizer::Token::Type::kw_const_cast,
+			tokenizer::Token::Type::kw_dynamic_cast,
+			tokenizer::Token::Type::kw_reinterpret_cast,
+			tokenizer::Token::Type::kw_static_cast }))
 		{
-			case tokenizer::Token::Type::kw_const_cast:
-			case tokenizer::Token::Type::kw_dynamic_cast:
-			case tokenizer::Token::Type::kw_reinterpret_cast:
-			case tokenizer::Token::Type::kw_static_cast:
-				if (!ParsePostfixExpression_cast(aStream, aOut))
+			if (!ParsePostfixExpression_cast(stream, aOut))
+				return false;
+
+			aStream = stream;
+			return true;
+		}
+
+		PostfixExpression_Typeid id;
+		if (stream.ConsumeOptional(tokenizer::Token::Type::kw_typeid, id.myTypeid))
+		{
+			if (!stream.Consume(tokenizer::Token::Type::L_Paren, id.myOpeningParenthesis))
+				return false;
+
+			if (!ParseTypeId(stream, id.myContent))
+			{
+				Expression subExpression;
+				if (!ParseExpression(stream, subExpression))
 					return false;
 
-				return true;
-
-			case tokenizer::Token::Type::kw_typeid: {
-				TokenStream& stream(aStream);
-
-				PostfixExpression_Typeid id;
-				id.myTypeid = stream.Consume();
-
-				if (stream.TokenType() != tokenizer::Token::Type::L_Paren)
-					return false;
-
-				id.myOpeningParenthesis = stream.Consume();
-
-				if (!ParseTypeId(stream, id.myContent))
-				{
-					Expression subExpression;
-					if (!ParseExpression(stream, subExpression))
-						return false;
-
-					id.myContent = std::make_shared<Expression>(subExpression);
-				}
-
-				if (stream.TokenType() == tokenizer::Token::Type::R_Paren)
-					return false;
-
-				id.myClosingParenthesis = stream.Consume();
-
-				aOut.myContent = id;
-
-				return true;
+				id.myContent = std::make_shared<Expression>(subExpression);
 			}
+
+			if (!stream.Consume(tokenizer::Token::Type::R_Paren, id.myOpeningParenthesis, id.myOpeningParenthesis))
+				return false;
+
+			aOut.myContent = id;
+
+			return true;
 		}
 
 		if (ParsePostfixExpression_construction(aStream, aOut))
@@ -914,118 +949,90 @@ namespace markup
 
 		while(true)
 		{
-			switch (stream.TokenType())
+			PostfixExpression_Subscript subscript;
+			subscript.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
+			PostfixExpression_Call call;
+			call.myLeftHandSide = std::make_shared<PostfixExpression>();
+			PostfixExpression_Access access;
+			access.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
+			PostfixExpression_Destruct destruct;
+			destruct.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
+			PostfixExpression_IncDec IncDec;
+			IncDec.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
+
+			if (stream.ConsumeOptional(tokenizer::Token::Type::L_Bracket, subscript.myOpeningBracket))
 			{
-				case tokenizer::Token::Type::L_Bracket:
+				Expression accessExpression;
+				BracedInitList accessList;
+
+				if (ParseExpression(stream, accessExpression))
 				{
-					PostfixExpression_Subscript subscript;
-					subscript.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
-					subscript.myOpeningBracket = stream.Consume();
-
-					Expression accessExpression;
-					BracedInitList accessList;
-
-					if (ParseExpression(stream, accessExpression))
-					{
-						subscript.myAccess = std::make_shared<Expression>(accessExpression);
-					}
-					else if (ParseBracedInitList(stream, accessList))
-					{
-						subscript.myAccess = accessList;
-					}
-					else
-					{
-						subscript.myAccess = std::optional<BracedInitList>{};
-					}
-
-					if (stream.TokenType() != tokenizer::Token::Type::R_Bracket)
-						return false;
-
-					subscript.myClosingBracket = stream.Consume();
-					expr.myContent = subscript;
-					break;
+					subscript.myAccess = std::make_shared<Expression>(accessExpression);
+				}
+				else if (ParseBracedInitList(stream, accessList))
+				{
+					subscript.myAccess = accessList;
+				}
+				else
+				{
+					subscript.myAccess = std::optional<BracedInitList>{};
 				}
 
-				case tokenizer::Token::Type::L_Paren:
-				{
-					PostfixExpression_Call call;
-
-					call.myLeftHandSide = std::make_shared<PostfixExpression>();
-					call.myOpeningParenthesis = stream.Consume();
-
-					ExpressionList expressionList;
-
-					if (ParseExpressionList(stream, expressionList))
-					{
-						call.myExpression = expressionList;
-					}
-
-					if (stream.TokenType() != tokenizer::Token::Type::R_Paren)
-						return false;
-
-					call.myClosingParenthesis = stream.Consume();
-
-					expr.myContent = call;
-					break;
-				}
-
-				case tokenizer::Token::Type::Dot:
-				case tokenizer::Token::Type::Arrow:
-				{
-					const tokenizer::Token* op = stream.Consume();
-
-					PostfixExpression_Access access;
-					
-					if (stream.TokenType() == tokenizer::Token::Type::kw_template)
-					{
-						access.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
-						access.myAccessOperator = op;
-						access.myTemplate = stream.Consume();
-
-						if (!ParseIdExpression(stream, access.myIdExpression))
-							return false;
-
-						expr.myContent = access;
-						break;
-					}
-
-					if (ParseIdExpression(stream, access.myIdExpression))
-					{
-						access.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
-						access.myAccessOperator = op;
-
-						expr.myContent = access;
-						break;
-					}
-
-
-					PostfixExpression_Destruct destruct;
-					if (ParsePseudoDestructorName(stream, destruct.myPseudoDestructorName))
-					{
-						destruct.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
-						destruct.myAccessOperator = op;
-
-						expr.myContent = destruct;
-						break;
-					}
-
+				if (!stream.Consume(tokenizer::Token::Type::R_Bracket, subscript.myClosingBracket, subscript.myOpeningBracket))
 					return false;
-				}
 
-				case tokenizer::Token::Type::PlusPlus:
-				case tokenizer::Token::Type::MinusMinus:
-				{
-					PostfixExpression_IncDec IncDec;
-					IncDec.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
-					IncDec.myOperator = stream.Consume();
-
-					expr.myContent = IncDec;
-					break;
-				}
-				default:
-					aOut = expr;
-					return true;
+				expr.myContent = subscript;
+				continue;
 			}
+
+			if (stream.ConsumeOptional(tokenizer::Token::Type::L_Paren, call.myOpeningParenthesis))
+			{
+				ExpressionList expressionList;
+
+				if (ParseExpressionList(stream, expressionList))
+				{
+					call.myExpression = expressionList;
+				}
+
+				if (!stream.Consume(tokenizer::Token::Type::R_Paren, call.myClosingParenthesis, call.myOpeningParenthesis))
+					return false;
+
+				expr.myContent = call;
+				continue;
+			}
+
+			if (stream.ConsumeAnyOptional({
+				tokenizer::Token::Type::Dot,
+				tokenizer::Token::Type::Arrow },
+				access.myAccessOperator))
+			{
+				stream.ConsumeOptional(tokenizer::Token::Type::kw_template, access.myTemplate);
+				if (ParseIdExpression(stream, access.myIdExpression))
+				{
+					expr.myContent = access;
+					continue;
+				}
+
+				if (ParsePseudoDestructorName(stream, destruct.myPseudoDestructorName))
+				{
+					expr.myContent = destruct;
+					continue;
+				}
+
+				return false;
+			}
+			
+			if (stream.ConsumeAnyOptional({
+				tokenizer::Token::Type::PlusPlus,
+				tokenizer::Token::Type::MinusMinus },
+				IncDec.myOperator))
+			{
+				expr.myContent = IncDec;
+				continue;
+			}
+
+			aOut = expr;
+			return true;
 		}
 	}
 
@@ -1055,65 +1062,70 @@ namespace markup
 	template<AssignableBy<UnaryExpression> T>
 	bool ParseUnaryExpression(TokenStream& aStream, T& aOut)
 	{
+		TokenStream stream(aStream);
+
 		UnaryExpression unaryExpression;
+		UnaryExpression_PrefixExpression prefix;
 
-		switch (aStream.TokenType())
+		if (stream.ConsumeAnyOptional({
+			tokenizer::Token::Type::PlusPlus,
+			tokenizer::Token::Type::MinusMinus,
+			tokenizer::Token::Type::Star,
+			tokenizer::Token::Type::BitAnd,
+			tokenizer::Token::Type::Plus,
+			tokenizer::Token::Type::Minus,
+			tokenizer::Token::Type::Not,
+			tokenizer::Token::Type::Complement
+			}, prefix.myOperator))
 		{
-			case tokenizer::Token::Type::PlusPlus:
-			case tokenizer::Token::Type::MinusMinus:
-			case tokenizer::Token::Type::Star:
-			case tokenizer::Token::Type::BitAnd:
-			case tokenizer::Token::Type::Plus:
-			case tokenizer::Token::Type::Minus:
-			case tokenizer::Token::Type::Not:
-			case tokenizer::Token::Type::Complement:
-			{
-				TokenStream stream(aStream);
-				UnaryExpression_PrefixExpression prefix;
-				prefix.myOperator = stream.Consume();
-				prefix.myRightHandSide = std::make_shared<CastExpression>();
+			prefix.myRightHandSide = std::make_shared<CastExpression>();
 
-				if (!ParseCastExpression(stream, *prefix.myRightHandSide))
-					return false;
-
-				unaryExpression = prefix;
-				aOut = unaryExpression;
-				aStream = stream;
-				return true;
-			}
-			case tokenizer::Token::Type::kw_sizeof:
-			{
-				// TODO
+			if (!ParseCastExpression(stream, *prefix.myRightHandSide))
 				return false;
-			}
-			case tokenizer::Token::Type::kw_alignof:
-			{
-				// TODO
-				return false;
-			}
-		}
 
-		if (ParseNoexceptExpression(aStream, unaryExpression))
-		{
+			unaryExpression = prefix;
 			aOut = unaryExpression;
+			aStream = stream;
 			return true;
 		}
 
-		if (ParseNewExpression(aStream, unaryExpression))
+		if (stream.PeekType(tokenizer::Token::Type::kw_sizeof))
+		{
+			// TODO
+			return false;
+		}
+
+		if (stream.PeekType(tokenizer::Token::Type::kw_alignof))
+		{
+			// TODO
+			return false;
+		}
+
+		if (ParseNoexceptExpression(stream, unaryExpression))
 		{
 			aOut = unaryExpression;
+			aStream = stream;
 			return true;
 		}
 
-		if (ParseDeleteExpression(aStream, unaryExpression))
+		if (ParseNewExpression(stream, unaryExpression))
 		{
 			aOut = unaryExpression;
+			aStream = stream;
 			return true;
 		}
 
-		if (ParsePostfixExpression(aStream, unaryExpression))
+		if (ParseDeleteExpression(stream, unaryExpression))
 		{
 			aOut = unaryExpression;
+			aStream = stream;
+			return true;
+		}
+
+		if (ParsePostfixExpression(stream, unaryExpression))
+		{
+			aOut = unaryExpression;
+			aStream = stream;
 			return true;
 		}
 
@@ -1124,17 +1136,16 @@ namespace markup
 	{
 		do
 		{
-			TokenStream stream(aStream);
-			if (stream.TokenType() != tokenizer::Token::Type::L_Paren)
-				break;
-
 			CastExpression_recurse recurse;
-			recurse.myOpeningParenthesis = stream.Consume();
+			TokenStream stream(aStream);
+		
+			if (!stream.ConsumeOptional(tokenizer::Token::Type::L_Paren, recurse.myOpeningParenthesis))
+				break;
 
 			if (!ParseTypeId(stream, recurse.myTypeId))
 				break;
 
-			if (stream.TokenType() != tokenizer::Token::Type::R_Paren)
+			if (!stream.ConsumeOptional(tokenizer::Token::Type::R_Paren, recurse.myClosingParenthesis))
 				break;
 
 			CastExpression child;
@@ -1164,18 +1175,16 @@ namespace markup
 			if (!ParseCastExpression(stream, expr.myRightHandSide))
 				return false;
 
-			const tokenizer::Token::Type candidates[] = 
-			{
-				tokenizer::Token::Type::DotStar,
-				tokenizer::Token::Type::ArrowStar
-			};
-
-			if (std::find(std::begin(candidates),std::end(candidates), stream.TokenType()) == std::end(candidates))
-				break;
-
 			PMExpression next;
-			next.myDereferenceOperator = stream.Consume();
 			next.myLeftHandSide = std::make_shared<PMExpression>(expr);
+
+			if (!stream.ConsumeAnyOptional({
+					tokenizer::Token::Type::DotStar,
+					tokenizer::Token::Type::ArrowStar
+				}, next.myDereferenceOperator))
+			{
+				break;
+			}
 
 			expr = next;
 		}
@@ -1195,19 +1204,17 @@ namespace markup
 			if (!ParsePMExpression(stream, expr.myRightHandSide))
 				return false;
 
-			const tokenizer::Token::Type candidates[] = 
-			{
+			MultiplicativeExpression next;
+			next.myLeftHandSide = std::make_shared<MultiplicativeExpression>(expr);
+
+			if (!stream.ConsumeAnyOptional({
 				tokenizer::Token::Type::Star,
 				tokenizer::Token::Type::Div,
 				tokenizer::Token::Type::Mod
-			};
-
-			if (std::find(std::begin(candidates),std::end(candidates), stream.TokenType()) == std::end(candidates))
+				}, next.myMultiplicationOperator))
+			{
 				break;
-
-			MultiplicativeExpression next;
-			next.myMultiplicationOperator = stream.Consume();
-			next.myLeftHandSide = std::make_shared<MultiplicativeExpression>(expr);
+			}
 
 			expr = next;
 		}
@@ -1227,18 +1234,16 @@ namespace markup
 			if (!ParseMultiplicativeExpression(stream, expr.myRightHandSide))
 				return false;
 
-			const tokenizer::Token::Type candidates[] = 
-			{
+			AddativeExpression next;
+			next.myLeftHandSide = std::make_shared<AddativeExpression>(expr);
+
+			if (!stream.ConsumeAnyOptional({
 				tokenizer::Token::Type::Plus,
 				tokenizer::Token::Type::Minus
-			};
-
-			if (std::find(std::begin(candidates),std::end(candidates), stream.TokenType()) == std::end(candidates))
+				}, next.myAdditionOperator))
+			{
 				break;
-
-			AddativeExpression next;
-			next.myAdditionOperator = stream.Consume();
-			next.myLeftHandSide = std::make_shared<AddativeExpression>(expr);
+			}
 
 			expr = next;
 		}
@@ -1258,18 +1263,16 @@ namespace markup
 			if (!ParseAddativeExpression(stream, expr.myRightHandSide))
 				return false;
 
-			const tokenizer::Token::Type candidates[] = 
-			{
+			ShiftExpression next;
+			next.myLeftHandSide = std::make_shared<ShiftExpression>(expr);
+
+			if (!stream.ConsumeAnyOptional({
 				tokenizer::Token::Type::LessLess,
 				tokenizer::Token::Type::GreaterGreater
-			};
-
-			if (std::find(std::begin(candidates),std::end(candidates), stream.TokenType()) == std::end(candidates))
+				}, next.myShiftOperator))
+			{
 				break;
-
-			ShiftExpression next;
-			next.myShiftOperator = stream.Consume();
-			next.myLeftHandSide = std::make_shared<ShiftExpression>(expr);
+			}
 
 			expr = next;
 		}
@@ -1289,20 +1292,18 @@ namespace markup
 			if (!ParseShiftExpression(stream, expr.myRightHandSide))
 				return false;
 
-			const tokenizer::Token::Type candidates[] = 
-			{
+			RelationalExpression next;
+			next.myLeftHandSide = std::make_shared<RelationalExpression>(expr);
+
+			if (!stream.ConsumeAnyOptional({
 				tokenizer::Token::Type::Less,
 				tokenizer::Token::Type::Greater,
 				tokenizer::Token::Type::LessEqual,
 				tokenizer::Token::Type::GreaterEqual
-			};
-
-			if (std::find(std::begin(candidates),std::end(candidates), stream.TokenType()) == std::end(candidates))
+				}, next.myRelationOperator))
+			{
 				break;
-
-			RelationalExpression next;
-			next.myRelationOperator = stream.Consume();
-			next.myLeftHandSide = std::make_shared<RelationalExpression>(expr);
+			}
 
 			expr = next;
 		}
@@ -1322,18 +1323,18 @@ namespace markup
 			if (!ParseRelationalExpression(stream, expr.myRightHandSide))
 				return false;
 
-			const tokenizer::Token::Type candidates[] = 
-			{
-				tokenizer::Token::Type::EqualEqual,
-				tokenizer::Token::Type::NotEquals
-			};
-
-			if (std::find(std::begin(candidates),std::end(candidates), stream.TokenType()) == std::end(candidates))
-				break;
-
 			EqualityExpression next;
-			next.myEqualityOperator = stream.Consume();
 			next.myLeftHandSide = std::make_shared<EqualityExpression>(expr);
+
+			if (!stream.ConsumeAnyOptional({
+				tokenizer::Token::Type::Less,
+				tokenizer::Token::Type::Greater,
+				tokenizer::Token::Type::LessEqual,
+				tokenizer::Token::Type::GreaterEqual
+				}, next.myEqualityOperator))
+			{
+				break;
+			}
 
 			expr = next;
 		}
@@ -1353,12 +1354,11 @@ namespace markup
 			if (!ParseEqualityExpression(stream, expr.myRightHandSide))
 				return false;
 
-			if (stream.TokenType() != tokenizer::Token::Type::BitAnd)
-				break;
-
 			AndExpression next;
-			next.myAnd = stream.Consume();
 			next.myLeftHandSide = std::make_shared<AndExpression>(expr);
+
+			if (!stream.ConsumeOptional(tokenizer::Token::Type::BitAnd, next.myAnd))
+				break;
 
 			expr = next;
 		}
@@ -1378,12 +1378,11 @@ namespace markup
 			if (!ParseAndExpression(stream, expr.myRightHandSide))
 				return false;
 
-			if (stream.TokenType() != tokenizer::Token::Type::Xor)
-				break;
-
 			ExclusiveOrExpression next;
-			next.myXor = stream.Consume();
 			next.myLeftHandSide = std::make_shared<ExclusiveOrExpression>(expr);
+
+			if (!stream.ConsumeOptional(tokenizer::Token::Type::Xor, next.myXor))
+				break;
 
 			expr = next;
 		}
@@ -1403,12 +1402,11 @@ namespace markup
 			if (!ParseExclusiveOrExpression(stream, expr.myRightHandSide))
 				return false;
 
-			if (stream.TokenType() != tokenizer::Token::Type::BitOr)
-				break;
-
 			InclusiveOrExpression next;
-			next.myOr = stream.Consume();
 			next.myLeftHandSide = std::make_shared<InclusiveOrExpression>(expr);
+
+			if (!stream.ConsumeOptional(tokenizer::Token::Type::Xor, next.myOr))
+				break;
 
 			expr = next;
 		}
@@ -1428,12 +1426,11 @@ namespace markup
 			if (!ParseInclusiveOrExpression(stream, expr.myRightHandSide))
 				return false;
 
-			if (stream.TokenType() != tokenizer::Token::Type::And)
-				break;
-
 			LogicalAndExpression next;
-			next.myAndAnd = stream.Consume();
 			next.myLeftHandSide = std::make_shared<LogicalAndExpression>(expr);
+
+			if (!stream.ConsumeOptional(tokenizer::Token::Type::And, next.myAndAnd))
+				break;
 
 			expr = next;
 		}
@@ -1453,12 +1450,11 @@ namespace markup
 			if (!ParseLogicalAndExpression(stream, expr.myRightHandSide))
 				return false;
 
-			if (stream.TokenType() != tokenizer::Token::Type::Or)
-				break;
-
 			LogicalOrExpression next;
-			next.myOrOr = stream.Consume();
 			next.myLeftHandSide = std::make_shared<LogicalOrExpression>(expr);
+
+			if (!stream.ConsumeOptional(tokenizer::Token::Type::Or, next.myOrOr))
+				break;
 
 			expr = next;
 		}
@@ -1481,12 +1477,11 @@ namespace markup
 			if (!ParseAssignmentExpression(stream, expr.myRightHandSide))
 				return false;
 
-			if (stream.TokenType() != tokenizer::Token::Type::Comma)
-				break;
-
 			Expression next;
-			next.myComma = stream.Consume();
 			next.myLeftHandSide = std::make_shared<Expression>(expr);
+
+			if (!stream.ConsumeOptional(tokenizer::Token::Type::Comma, next.myComma))
+				break;
 			
 			expr = next;
 		}
@@ -1506,7 +1501,8 @@ namespace markup
 		if (!ParseLogicalOrExpression(stream, expr.myCondition))
 			return false;
 
-		if (stream.TokenType() != tokenizer::Token::Type::Question)
+
+		if (!stream.ConsumeOptional(tokenizer::Token::Type::Question, expr.myQuestionMark))
 		{
 			aOut = expr;
 			aStream = stream;
@@ -1514,17 +1510,14 @@ namespace markup
 		}
 
 		expr.myOnTruthy = std::make_shared<Expression>();
-		expr.myQuestionMark = stream.Consume();
 		expr.myOnFalsy = std::make_shared<AssignmentExpression>();
 
 		if (!ParseExpression(stream, *expr.myOnTruthy))
 			return false;
 
-		if (stream.TokenType() != tokenizer::Token::Type::Colon)
+		if (!stream.Consume(tokenizer::Token::Type::Colon, expr.myColon))
 			return false;
 
-		expr.myColon = stream.Consume();
-		
 		if (!ParseAssignmentExpression(stream, *expr.myOnFalsy))
 			return false;
 
@@ -1578,29 +1571,21 @@ namespace markup
 	{
 		TokenStream stream(aStream);
 
-		if (stream.TokenType() == tokenizer::Token::Type::L_Bracket)
+		AttributeSpecifier attr;
+		AlignmentSpecifier align;
+
+		if (stream.ConsumeOptional(tokenizer::Token::Type::L_Bracket, attr.myOuterOpening))
 		{
-			AttributeSpecifier attr;
-
-			attr.myOuterOpening = stream.Consume();
-
-			if (stream.TokenType() != tokenizer::Token::Type::L_Bracket)
+			if (!stream.Consume(tokenizer::Token::Type::L_Bracket, attr.myInnerOpening))
 				return false;
-
-			attr.myInnerOpening = stream.Consume();
 
 			if (!ParseAttributeList(stream, attr.myAttributeList))
 				return false;
 
-			if (stream.TokenType() != tokenizer::Token::Type::R_Bracket)
+			if (!stream.Consume(tokenizer::Token::Type::R_Bracket, attr.myInnerClosing))
 				return false;
-
-			attr.myInnerClosing = stream.Consume();
-
-			if (stream.TokenType() != tokenizer::Token::Type::R_Bracket)
+			if (!stream.Consume(tokenizer::Token::Type::R_Bracket, attr.myOuterClosing))
 				return false;
-
-			attr.myOuterClosing = stream.Consume();
 
 			aOut = attr;
 			aStream = stream;
@@ -1608,39 +1593,24 @@ namespace markup
 			return true;
 		}
 
-		if (stream.TokenType() == tokenizer::Token::Type::kw_alignas)
-		{
-			AlignmentSpecifier align;
+		if (!stream.ConsumeOptional(tokenizer::Token::Type::kw_alignas, align.myAlignas))
+			return false;
+		if (!stream.Consume(tokenizer::Token::Type::L_Paren, align.myOpeningParen))
+			return false;
 
-			align.myAlignas = stream.Consume();
-
-			if (stream.TokenType() != tokenizer::Token::Type::L_Paren)
+		if (!ParseTypeId(stream, align.myContent))
+			if (!ParseAssignmentExpression(stream, align.myContent))
 				return false;
 
-			align.myOpeningParen = stream.Consume();
+		stream.ConsumeOptional(tokenizer::Token::Type::Ellipsis, align.myEllipsis);
 
-			if (!ParseTypeId(stream, align.myContent))
-				if (!ParseAssignmentExpression(stream, align.myContent))
-					return false;
+		if (!stream.Consume(tokenizer::Token::Type::R_Paren, align.myClosingParen))
+			return false;
 
-			if (stream.TokenType() == tokenizer::Token::Type::Ellipsis)
-			{
-				align.myEllipsis = &stream.Token();
-				stream.Consume();
-			}
+		aOut = align;
+		aStream = stream;
 
-			if (stream.TokenType() != tokenizer::Token::Type::R_Paren)
-				return false;
-
-			align.myOpeningParen = stream.Consume();
-			
-			aOut = align;
-			aStream = stream;
-
-			return true;
-		}
-
-		return false;
+		return true;
 	}
 
 	template<AssignableBy<AttributeDeclaration> T>
@@ -1650,7 +1620,7 @@ namespace markup
 
 		AttributeDeclaration decl;
 
-		do
+		while (true)
 		{
 			std::variant<AttributeSpecifier, AlignmentSpecifier> attributeSpecifier;
 
@@ -1659,10 +1629,9 @@ namespace markup
 
 			decl.mySpecifiers.push_back(attributeSpecifier);
 
-		} while (stream.TokenType() != tokenizer::Token::Type::Semicolon);
-
-		decl.mySemicolon = &stream.Token();
-		stream.Consume();
+			if (stream.ConsumeOptional(tokenizer::Token::Type::Semicolon, decl.mySemicolon))
+				break;
+		};
 
 		aOut = decl;
 		aStream = stream;
@@ -1827,6 +1796,16 @@ namespace markup
 	void operator<<(std::ostream& aStream, const ExplicitInstantiation& aDeclaration)
 	{
 		aStream  << NewLine() << "ExplicitInstantiation";
+		if (aDeclaration.myExtern)
+			aStream  << NewLine() << "\\Extern";
+
+		aStream  << NewLine() << "{";
+		indent++;
+
+		aStream << *aDeclaration.myDeclaration;
+
+		indent--;
+		aStream  << NewLine() << "}";
 	}
 
 	void operator<<(std::ostream& aStream, const ExplicitSpecialization& aDeclaration)
@@ -1919,7 +1898,30 @@ namespace markup
 	{
 		aStream  << NewLine() << "EmptyDeclaration";
 	}
-	
+
+	void operator<<(std::ostream& aStream, const BalancedToken& aBalancedToken)
+	{
+		switch (aBalancedToken.index())
+		{
+		case 0:
+		{
+			BalancedToken_Braced braced = std::get<BalancedToken_Braced>(aBalancedToken);
+			aStream << NewLine() << braced.myOpener->myRawText;
+			indent++;
+
+			aStream << *braced.myContent;
+
+			indent--;
+			aStream << NewLine() << braced.myCloser->myRawText;
+		}
+			break;
+		case 1:
+			aStream << NewLine() << std::get<1>(aBalancedToken)->myRawText;
+			break;
+		}
+
+	}
+
 	void operator<<(std::ostream& aStream, const Attribute& aAttribute)
 	{
 		aStream << NewLine() << Tokens("", aAttribute.myAttributeNamespace, aAttribute.myColonColon, aAttribute.myIdentifier);
@@ -1927,14 +1929,17 @@ namespace markup
 		{
 			aStream << "("; 
 			bool first = true;
-			for (const tokenizer::Token* tok : aAttribute.myArgumentClause->myBalancedTokenSequence)
+			for (const BalancedToken& tok : aAttribute.myArgumentClause->myBalancedTokenSequence)
 			{
-				if(!first) aStream << " ";
-				first = false;
-				aStream << tok->myRawText;
+				aStream << tok;
 			}
 			aStream << ")";
 		}
+
+		if (aAttribute.myEllipsis)
+			aStream << NewLine() << "Ellipsis: true";
+		else
+			aStream << NewLine() << "Ellipsis: false";
 	}
 
 	void operator<<(std::ostream& aStream, const AttributeDeclaration& aDeclaration)
@@ -2026,19 +2031,27 @@ namespace markup
 						aStream << NewLine() << "{";
 						indent++;
 
-						for (Attribute attribute : attr.myAttributeList.myAttributes)
+						bool first = true;
+
+						for (std::variant<Attribute, nullptr_t> attribute : attr.myAttributeList.myAttributes)
 						{
-							aStream << attribute;
+							if (!first)
+								aStream << ",";
+							
+							first = true;
+
+							switch (attribute.index())
+							{
+							case 0:
+								aStream << std::get<0>(attribute);
+								break;
+							case 1:
+								break;
+							}
 						}
 
 						indent--;
 						aStream << NewLine() << "}";
-
-						aStream << NewLine() << "Ellipsis: ";
-						if (attr.myAttributeList.myEllipsis)
-							aStream << "True";
-						else
-							aStream << "False";
 
 						indent--;
 						aStream << NewLine() << "}";

@@ -49,9 +49,21 @@ public:
 
 	const static size_t npos = ~(0ull);
 
+	class IgnoreHandle
+	{
+	public:
+		IgnoreHandle(size_t& aIgnoreDepthPtr);
+		~IgnoreHandle();
+	private:
+		size_t& myIgnoreDepth;
+	};
+
+	static IgnoreHandle IgnoreErrors();
+
 private:
 
 	static FeatureSwitch								myWarningSwitches;
+	static size_t										myIgnoreDepth;
 	static bool											myHasErrors;
 	static size_t										myCurrentLine;
 	static std::stack<std::filesystem::path>			myFileStack;
