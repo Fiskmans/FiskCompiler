@@ -19,9 +19,10 @@ namespace tokenizer
 			Include_directive,
 			Header_name,
 
-			Integer,
+			Integer_literal,
 			String_literal,
 			Char_literal,
+			Floating_literal,
 
 			kw_alignas,
 			kw_alignof,
@@ -117,7 +118,7 @@ namespace tokenizer
 			Colon,
 			Ellipsis,
 			Question,
-			Colon_colon,
+			ColonColon,
 			Dot,
 			DotStar,
 			Arrow,
@@ -198,6 +199,7 @@ namespace tokenizer
 	{
 		inline auto IsNotWhitespace = std::ranges::views::filter([](const Token& aToken) { return aToken.myType != Token::Type::WhiteSpace && aToken.myType != Token::Type::NewLine; });
 		inline auto IsLogical = std::ranges::views::filter([](const Token& aToken ) { return !aToken.IsPrepoccessorSpecific(); });
+		inline auto AsString = std::ranges::views::transform([](const Token::Type& aType ) { return Token::TypeToString(aType); });
 	}
 
 	using Identifier = Token;

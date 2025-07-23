@@ -1,7 +1,7 @@
 #ifndef COMPILER_PATTERNS_H
 #define COMPILER_PATTERNS_H
 
-#include "Pattern.h"
+#include "markup/Pattern.h"
 
 #include <vector>
 #include <iostream>
@@ -66,36 +66,27 @@ namespace markup
 	{
 	};
 
-	struct TemplateDeclaration
-	{
-	};
-
-	struct ExplicitInstantiation
-	{
-	};
-
-	struct ExplicitSpecialization
-	{
-	};
-
-	struct LinkageSpecification
-	{
-	};
-
-	struct NamespaceDefinition
-	{
-	};
-
 	struct EmptyDeclaration
 	{
 		const tokenizer::Token* mySemicolon = nullptr;
+	};
+
+	struct BalancedToken_Braced;
+
+	using BalancedToken = std::variant<BalancedToken_Braced, const tokenizer::Token*>;
+
+	struct BalancedToken_Braced
+	{
+		const tokenizer::Token* myOpener = nullptr;
+		NotNullPtr<BalancedToken> myContent = nullptr;
+		const tokenizer::Token* myCloser = nullptr;
 	};
 
 	struct AttributeArgumentClause
 	{
 		const tokenizer::Token* myOpeningParenthesis = nullptr;
 
-		std::vector<const tokenizer::Token*> myBalancedTokenSequence;
+		std::vector<BalancedToken> myBalancedTokenSequence;
 
 		const tokenizer::Token* myClosingParenthesis = nullptr;
 	};
@@ -103,19 +94,17 @@ namespace markup
 	struct Attribute
 	{
 		const tokenizer::Token* myAttributeNamespace = nullptr;
-		
 		const tokenizer::Token* myColonColon = nullptr;
 
 		Identifier myIdentifier = nullptr;
 
+		const tokenizer::Token* myEllipsis = nullptr;
 		std::optional<AttributeArgumentClause> myArgumentClause;
 	};
 
 	struct AttributeList
 	{
-		std::vector<Attribute> myAttributes;
-
-		const tokenizer::Token* myEllipsis = nullptr;
+		std::vector<std::variant<Attribute,nullptr_t>> myAttributes;
 	};
 
 	struct NestedNameSpecifier
@@ -179,10 +168,11 @@ namespace markup
 	
 	};
 
-	struct ExpressionList
+	struct InitializerList
 	{
-	
 	};
+
+	using ExpressionList = InitializerList;
 
 	struct BracedInitList
 	{
@@ -210,15 +200,11 @@ namespace markup
 	};
 
 	using PrimaryExpression = std::variant<
-		Literal,
-		const tokenizer::Token*, // this
+		const tokenizer::Token*, // this or literal
 		PrimaryExpression_Parenthesis,
 		IdExpression,
 		LambdaExpression>;
 
-	struct InitializerList
-	{
-	};
 
 	struct PostfixExpression;
 
@@ -530,10 +516,14 @@ namespace markup
 		AttributeSpecifierSequence mySpecifiers;
 		const tokenizer::Token* mySemicolon = nullptr;
 	};
+	
+	struct NamespaceDefinition;
+	struct LinkageSpecification;
+	struct ExplicitSpecialization;
+	struct ExplicitInstantiation;
+	struct TemplateDeclaration;
 
-	struct TranslationUnit
-	{
-		std::vector<std::variant<
+	using Declaration = std::variant<
 			BlockDeclaration,
 			FunctionDeclaration,
 			TemplateDeclaration,
@@ -542,7 +532,83 @@ namespace markup
 			LinkageSpecification,
 			NamespaceDefinition,
 			EmptyDeclaration,
-			AttributeDeclaration>> myDeclarations;
+			AttributeDeclaration>;
+
+	struct TemplateType;
+
+	struct TypeParameter
+	{
+		MaybeNullPtr<TemplateType> myBaseTemplateType;
+		const tokenizer::Token* myClassOrTypename = nullptr;
+		const tokenizer::Token* myEllipsis = nullptr; // exclusive with default
+		Identifier myIdentifer = nullptr;
+
+		const tokenizer::Token* myDefaultEquals = nullptr;
+		std::optional<IdExpression> myDefaultExpression;
+	};
+
+	struct ParameterDeclaration
+	{
+	};
+
+	using TemplateParameter = std::variant<TypeParameter, ParameterDeclaration>;
+
+	struct TemplateType
+	{
+		const tokenizer::Token* myTemplate = nullptr;
+		const tokenizer::Token* myOpening = nullptr;
+		std::vector<TemplateParameter> myParamaters;
+		const tokenizer::Token* myClosing = nullptr;
+	};
+
+	struct TemplateDeclaration
+	{
+		TemplateType myType;
+		NotNullPtr<Declaration> myDeclaration;
+	};
+
+	struct ExplicitInstantiation
+	{
+		const tokenizer::Token* myExtern = nullptr;
+		const tokenizer::Token* myTemplate = nullptr;
+		NotNullPtr<Declaration> myDeclaration;
+	};
+
+	struct ExplicitSpecialization
+	{
+		const tokenizer::Token* myTemplate = nullptr;
+		const tokenizer::Token* myOpening = nullptr;
+		const tokenizer::Token* myClosing = nullptr;
+		NotNullPtr<Declaration> myDeclaration;
+	};
+
+	struct LinkageSpecification_block
+	{
+		const tokenizer::Token* myOpeningBrace = nullptr;
+		std::vector<Declaration> myDeclarations;
+		const tokenizer::Token* myClosingBrace = nullptr;
+	};
+
+	struct LinkageSpecification
+	{
+		const tokenizer::Token* myExtern = nullptr;
+		const tokenizer::Token* myString = nullptr;
+		std::variant<LinkageSpecification_block, NotNullPtr<Declaration>> myDeclaration;
+	};
+
+	struct NamespaceDefinition
+	{
+		const tokenizer::Token* myInline = nullptr;
+		const tokenizer::Token* myNamespace = nullptr;
+		Identifier myIdentifier = nullptr;
+		const tokenizer::Token* myOpeningBrace = nullptr;
+		std::vector<Declaration> myDeclarations;
+		const tokenizer::Token* myClosingBrace = nullptr;
+	};
+
+	struct TranslationUnit
+	{
+		std::vector<Declaration> myDeclarations;
 	};
 
 	TranslationUnit Markup(const std::vector<tokenizer::Token>& aTokens);
@@ -556,6 +622,7 @@ namespace markup
 	}
 
 	void operator<<(std::ostream& aStream, const TranslationUnit& aTranslationUnit);
+	void operator<<(std::ostream& aStream, const Declaration& aDeclaration);
 	void operator<<(std::ostream& aStream, const BlockDeclaration& aDeclaration);
 	void operator<<(std::ostream& aStream, const FunctionDeclaration& aDeclaration);
 	void operator<<(std::ostream& aStream, const TemplateDeclaration& aDeclaration);
@@ -564,6 +631,7 @@ namespace markup
 	void operator<<(std::ostream& aStream, const LinkageSpecification& aDeclaration);
 	void operator<<(std::ostream& aStream, const NamespaceDefinition& aDeclaration);
 	void operator<<(std::ostream& aStream, const EmptyDeclaration& aDeclaration);
+	void operator<<(std::ostream& aStream, const BalancedToken& aBalancedToken);
 	void operator<<(std::ostream& aStream, const Attribute& aAttribute);
 	void operator<<(std::ostream& aStream, const AttributeDeclaration& aDeclaration);
 	void operator<<(std::ostream& aStream, const TypeId& aTypeId);
@@ -587,6 +655,47 @@ namespace markup
 
 	void operator<<(std::ostream& aStream, const NestedNameSpecifier& aNestedNameSpecifier);
 	void operator<<(std::ostream& aStream, const Typename& aTypename);
+
+	void operator<<(std::ostream& aStream, const ConditionalExpression& aExpression);
+	void operator<<(std::ostream& aStream, const AssignmentExpression_Assignment& aExpression);
+	void operator<<(std::ostream& aStream, const ThrowExpression& aExpression);
+
+	void operator<<(std::ostream& aStream, const Expression& aExpression);
+	void operator<<(std::ostream& aStream, const LogicalOrExpression& aExpression);
+	void operator<<(std::ostream& aStream, const LogicalAndExpression& aExpression);
+	void operator<<(std::ostream& aStream, const InclusiveOrExpression& aExpression);
+	void operator<<(std::ostream& aStream, const ExclusiveOrExpression& aExpression);
+	void operator<<(std::ostream& aStream, const AndExpression& aExpression);
+	void operator<<(std::ostream& aStream, const EqualityExpression& aExpression);
+	void operator<<(std::ostream& aStream, const RelationalExpression& aExpression);
+	void operator<<(std::ostream& aStream, const ShiftExpression& aExpression);
+	void operator<<(std::ostream& aStream, const AddativeExpression& aExpression);
+	void operator<<(std::ostream& aStream, const MultiplicativeExpression& aExpression);
+	void operator<<(std::ostream& aStream, const PMExpression& aExpression);
+	void operator<<(std::ostream& aStream, const CastExpression& aExpression);
+	void operator<<(std::ostream& aStream, const UnaryExpression& aExpression);
+	void operator<<(std::ostream& aStream, const UnaryExpression_PrefixExpression& aExpression);
+	void operator<<(std::ostream& aStream, const UnaryExpression_sizeof& aExpression);
+	void operator<<(std::ostream& aStream, const UnaryExpression_alignof& aExpression);
+	void operator<<(std::ostream& aStream, const NoexceptExpression& aExpression);
+	void operator<<(std::ostream& aStream, const NewExpression& aExpression);
+	void operator<<(std::ostream& aStream, const DeleteExpression& aExpression);
+
+	void operator<<(std::ostream& aStream, const PostfixExpression& aExpression);
+	void operator<<(std::ostream& aStream, const PostfixExpression_Subscript& aExpression);
+	void operator<<(std::ostream& aStream, const PostfixExpression_Call& aExpression);
+	void operator<<(std::ostream& aStream, const PostfixExpression_Construct& aExpression);
+	void operator<<(std::ostream& aStream, const PostfixExpression_Access& aExpression);
+	void operator<<(std::ostream& aStream, const PostfixExpression_Destruct& aExpression);
+	void operator<<(std::ostream& aStream, const PostfixExpression_IncDec& aExpression);
+	void operator<<(std::ostream& aStream, const PostfixExpression_Cast& aExpression);
+	void operator<<(std::ostream& aStream, const PostfixExpression_Typeid& aExpression);
+
+	void operator<<(std::ostream& aStream, const PrimaryExpression& aExpression);
+
+	void operator<<(std::ostream& aStream, const PrimaryExpression_Parenthesis& aExpression);
+	void operator<<(std::ostream& aStream, const IdExpression& aExpression);
+	void operator<<(std::ostream& aStream, const LambdaExpression& aExpression);
 
 }
 
