@@ -1,7 +1,9 @@
-
+#ifndef COMMON_FEATURE_SWITCH_H
+#define COMMON_FEATURE_SWITCH_H
 
 #include <string_view>
 #include <unordered_map>
+#include <string>
 
 class FeatureSwitch
 {
@@ -25,3 +27,5 @@ private:
 	std::unordered_map<std::string, std::vector<std::string>> myCollections;
 	std::unordered_map<std::string, State> myFeatures;
 };
+
+#endif 

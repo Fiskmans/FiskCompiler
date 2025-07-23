@@ -102,7 +102,7 @@ namespace markup
 			return false;
 
 		EmptyDeclaration temp;
-		temp.mySemicolon = &aStream.Consume();
+		temp.mySemicolon = aStream.Consume();
 
 		aOut = temp;
 		return true;
@@ -407,14 +407,20 @@ namespace markup
 	
 	bool ParsePostfixExpression_cast(TokenStream& aStream, PostfixExpression& aOut)
 	{
+		// TODO
+		return false;
 	}
 
 	bool ParsePostfixExpression_construction(TokenStream& aStream, PostfixExpression& aOut)
 	{
+		// TODO
+		return false;
 	}
 
 	bool ParsePostfixExpression_extendable(TokenStream& aStream, PostfixExpression& aOut)
 	{
+		// TODO
+		return false;
 	}
 	
 	bool ParseExpression(TokenStream& aStream, Expression& aOut);
@@ -481,6 +487,25 @@ namespace markup
 		return true;
 	}
 
+	bool ParseIdExpression(TokenStream& aStream, IdExpression& aOut)
+	{
+
+		// TODO
+		return false;
+	}
+
+	bool ParseBracedInitList(TokenStream& aStream, BracedInitList& aOut)
+	{
+		// TODO
+		return false;
+	}
+
+	bool ParseExpressionList(TokenStream& aStream, ExpressionList& aOut)
+	{
+		// TODO
+		return false;
+	}
+
 	template <AssignableBy<PostfixExpression> T>
 	bool ParsePostfixExpression(TokenStream& aStream, T& aOut)
 	{
@@ -505,7 +530,7 @@ namespace markup
 
 					if (ParseExpression(stream, accessExpression))
 					{
-						subscript.myAccess = accessExpression;
+						subscript.myAccess = std::make_shared<Expression>(accessExpression);
 					}
 					else if (ParseBracedInitList(stream, accessList))
 					{
@@ -520,7 +545,7 @@ namespace markup
 						return false;
 
 					subscript.myClosingBracket = stream.Consume();
-					expr = subscript;
+					expr.myContent = subscript;
 					break;
 				}
 
@@ -543,7 +568,7 @@ namespace markup
 
 					call.myClosingParenthesis = stream.Consume();
 
-					expr = call;
+					expr.myContent = call;
 					break;
 				}
 
@@ -562,18 +587,29 @@ namespace markup
 
 						if (!ParseIdExpression(stream, access.myIdExpression))
 							return false;
+
+						break;
 					}
 
+					if (ParseIdExpression(stream, access.myIdExpression))
+					{
+						access.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
+						access.myAccessOperator = op;
+
+						return false;
+					}
 				}
 
 				case tokenizer::Token::Type::PlusPlus:
 				case tokenizer::Token::Type::MinusMinus:
-
+				{
 					PostfixExpression_IncDec IncDec;
 					IncDec.myLeftHandSide = std::make_shared<PostfixExpression>(expr);
 					IncDec.myOperator = stream.Consume();
 
-					expr = IncDec;
+					expr.myContent = IncDec;
+				}
+
 					break;
 				default:
 					aOut = expr;

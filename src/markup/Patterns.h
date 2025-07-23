@@ -233,9 +233,9 @@ namespace markup
 	struct PostfixExpression_Call
 	{
 		NotNullPtr<PostfixExpression> myLeftHandSide;
-		const tokenizer::Token* myOpeningBracket = nullptr;
+		const tokenizer::Token* myOpeningParenthesis = nullptr;
 		std::optional<ExpressionList> myExpression;
-		const tokenizer::Token* myClosingBracket = nullptr;
+		const tokenizer::Token* myClosingParenthesis = nullptr;
 	};
 
 	struct PostfixExpression_Construct
