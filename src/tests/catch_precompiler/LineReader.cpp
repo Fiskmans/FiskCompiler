@@ -3,7 +3,7 @@
 
 #include "precompiler/LineReader.h"
 
-TEST_CASE("line_reader::basic", "")
+TEST_CASE("precompiler::line_reader::basic", "")
 {
 	std::stringstream ss("Hello");
 
@@ -17,7 +17,7 @@ TEST_CASE("line_reader::basic", "")
 	REQUIRE((reader == nullptr));
 }
 
-TEST_CASE("line_reader::multiline_1", "")
+TEST_CASE("precompiler::line_reader::multiline_1", "")
 {
 	std::stringstream ss("Hello\nThere");
 
@@ -38,7 +38,7 @@ TEST_CASE("line_reader::multiline_1", "")
 	REQUIRE((reader == nullptr));
 }
 
-TEST_CASE("line_reader::multiline_2", "")
+TEST_CASE("precompiler::line_reader::multiline_2", "")
 {
 	std::stringstream ss("Hello\\\nThere\nGeneral");
 

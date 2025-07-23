@@ -13,7 +13,6 @@ namespace fisk::precompiler
 
 	SourceLine FileReader::operator*()
 	{
-
 		return {
 			myPath,
 			*myLineReader,

@@ -2,6 +2,8 @@
 #pragma once
 
 #include <string>
+#include <utility>
+#include <optional>
 
 namespace fisk::precompiler
 {
@@ -26,13 +28,13 @@ namespace fisk::precompiler
 	using SentinelRange = SimpleRange<Iterator, nullptr_t>;
 
 	template<class Range>
-	using BeginIteratorOf = decltype(std::ranges::begin(declval<Range>()));
+	using BeginIteratorOf = decltype(std::begin(std::declval<Range>()));
 
 	template<class Range>
-	using EndIteratorOf = decltype(std::ranges::end(declval<Range>()));
+	using EndIteratorOf = decltype(std::end(std::declval<Range>()));
 
 	template<class Iterator>
-	using ValueType = decltype(*declval<Iterator>());
+	using ValueType = decltype(*std::declval<Iterator>());
 
 	template<class BaseIterator>
 	class UnpackingIterator
@@ -44,10 +46,20 @@ namespace fisk::precompiler
 		{
 		}
 
+		UnpackingIterator(const UnpackingIterator& aOther) = default;
+		UnpackingIterator& operator=(const UnpackingIterator& aOther) = default;
+
 		auto operator*()
 		{
-			if (!myInnerAt)
-				myInnerAt = std::ranges::begin(*myAt);
+			while (!myInnerAt)
+			{
+				myInnerAt = std::begin(*myAt);
+				if (*myInnerAt == std::end(*myAt))
+				{
+					++myAt;
+					myInnerAt = {};
+				}
+			}
 
 			return **myInnerAt;
 		}
@@ -55,45 +67,47 @@ namespace fisk::precompiler
 		UnpackingIterator& operator++()
 		{
 			if (!myInnerAt)
-				myInnerAt = std::ranges::begin(*myAt);
+				myInnerAt = std::begin(*myAt);
 
-			if (*myInnerAt == std::ranges::end(*myAt))
+			++*myInnerAt;
+			if (*myInnerAt == std::end(*myAt))
 			{
 				myAt++;
 				myInnerAt = {};
-				return;
+				return *this;
 			}
-
-			++*myInnerAt;
+			return *this;
 		}
 
 		template<class T>
 		bool operator==(T&& aOther)
 		{
-			return myAt == aOther;
-		}
-		
-		template<class T>
-		bool operator==(const T& aOther) const
-		{
-			return myAt == aOther;
+			if (myAt == aOther)
+				return true;
+
+			if (!myInnerAt)
+				myInnerAt = std::begin(*myAt);
+
+			if (*myInnerAt == std::end(*myAt))
+			{
+				myAt++;
+
+				myInnerAt = {};
+				return *this == aOther;
+			}
+
+			return false;
 		}
 		
 		template<class T>
 		bool operator!=(T&& aOther)
 		{
-			return myAt != aOther;
-		}
-		
-		template<class T>
-		bool operator!=(const T& aOther) const
-		{
-			return myAt != aOther;
+			return !(*this == aOther);
 		}
 
 	private:
 		BaseIterator myAt;
-		BeginIteratorOf<ValueType<BaseIterator>> myInnerAt;
+		std::optional<BeginIteratorOf<ValueType<BaseIterator>>> myInnerAt;
 	};
 
 
@@ -106,6 +120,7 @@ namespace fisk::precompiler
 		char myCharacter;
 
 		bool operator==(const char aOther) const;
+		bool operator==(const SourceChar& aOther) const = default;
 	};
 
 	struct SourceLine
@@ -116,17 +131,16 @@ namespace fisk::precompiler
 
 		struct SourceLineIterator
 		{
-			SourceLine& myLine;
+			SourceLine* myLine;
 			size_t myIndex = 0;
 
 			SourceChar operator*();
+			SourceLineIterator& operator++();
 			bool operator==(nullptr_t);
 			bool operator==(SourceLineIterator aOther);
 		};
 
 		SourceLineIterator begin();
 		nullptr_t end();
-
-		SimpleRange<SourceLineIterator, SourceLineIterator> TrimEnd(size_t aAmount);
 	};
 }

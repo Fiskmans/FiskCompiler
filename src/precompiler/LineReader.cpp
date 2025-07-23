@@ -42,9 +42,13 @@ namespace fisk::precompiler
 
 	void LineReader::NextLine()
 	{
+		myLineBuffer.clear();
+
 		if (!std::getline(myStream, myLineBuffer))
 		{
-			myState = State::EndOfFile;
+			if (myLineBuffer.empty())
+				myState = State::EndOfFile;
+
 			return;
 		}
 

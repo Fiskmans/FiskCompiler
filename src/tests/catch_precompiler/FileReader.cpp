@@ -22,7 +22,7 @@ void CompareFile(std::string aFile, std::vector<std::string> aLines)
 	REQUIRE((reader == nullptr));
 }
 
-TEST_CASE("file_reader::basic", "")
+TEST_CASE("precompiler::file_reader::basic", "")
 {
 	CompareFile("test/precompiler/file_reader/1_basic.txt", { "int main(){}" });
 	CompareFile("test/precompiler/file_reader/2_multiline.txt", { "int main()", "{", "}" });

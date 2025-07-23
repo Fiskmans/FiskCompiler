@@ -7,16 +7,22 @@ namespace fisk::precompiler
     SourceChar SourceLine::SourceLineIterator::operator*()
     {
         return {
-            myLine.myFile,
-            myLine.myLine,
+            myLine->myFile,
+            myLine->myLine,
             myIndex,
-            myLine.myText[myIndex]
+            myLine->myText[myIndex]
         };
+    }
+
+    SourceLine::SourceLineIterator& SourceLine::SourceLineIterator::operator++()
+    {
+        myIndex++;
+        return *this;
     }
 
     bool SourceLine::SourceLineIterator::operator==(nullptr_t)
     {
-        return myIndex == myLine.myText.length();
+        return myIndex == myLine->myText.length();
     }
 
     bool SourceLine::SourceLineIterator::operator==(SourceLineIterator aOther)
@@ -33,19 +39,12 @@ namespace fisk::precompiler
 
     SourceLine::SourceLineIterator SourceLine::begin()
     {
-        return { *this };
+        return { this };
     }
 
     nullptr_t SourceLine::end()
     {
         return nullptr;
-    }
-
-    SimpleRange<SourceLine::SourceLineIterator, SourceLine::SourceLineIterator> SourceLine::TrimEnd(size_t aAmount)
-    {
-        assert(aAmount >= myText.length());
-
-        return { begin(), { *this, myText.length() - aAmount } };
     }
 
 }
