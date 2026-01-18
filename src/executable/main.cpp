@@ -5,9 +5,7 @@
 #include "common/CompilerContext.h"
 #include "common/HelpPrinter.h"
 
-#include "tokenizer/tokenizer.h"
-#include "markup/Patterns.h"
-#include "main.h"
+#include "precompiler/Precompiler.h"
 
 
 std::optional<std::ofstream> GetArtifactsFile(std::filesystem::path aPath, std::string extension)
@@ -76,29 +74,6 @@ void DumpTokens(std::vector<tokenizer::Token>& tokens, std::filesystem::path aPa
 	*out << line << "\n" << annotation << "\n\n";
 }
 
-void DumpMarkup(const markup::TranslationUnit& aMarkup, std::filesystem::path aPath)
-{
-	std::ostream* out = &std::cout;
-	std::ofstream file;
-	size_t columnLimit = 120;
-
-	if (std::optional<std::ofstream> dumpFile = GetArtifactsFile(aPath, ".markup"))
-	{
-		if (*dumpFile)
-		{
-			file = std::move(*dumpFile);
-			out = &file;
-		}
-		else
-		{
-			CompilerContext::EmitError("Failed to create file to write markup output to", aPath);
-			return;
-		}
-	}
-
-	*out << aMarkup;
-}
-
 void printHelp()
 {
 	HelpPrinter printer;
@@ -116,19 +91,9 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	for (std::filesystem::path file : files)
+	for (std::filesystem::path path : files)
 	{
-		CompilerContext::PushFile(file);
-
-		std::vector<tokenizer::Token> tokens = tokenizer::Tokenize(file);
-
-		if (CompilerContext::GetFlag("dump") == "tokens") DumpTokens(tokens, file);
-
-		markup::TranslationUnit translationUnit = markup::Markup(tokens);
-
-		if (CompilerContext::GetFlag("dump") == "markup") DumpMarkup(translationUnit, file);
-
-		CompilerContext::PopFile();
+		auto file = fisk::precompiler::Precompile(path);
 	}
 
 	return CompilerContext::HasErrors() ? EXIT_FAILURE : EXIT_SUCCESS;

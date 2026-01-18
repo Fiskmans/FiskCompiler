@@ -17,13 +17,13 @@ Include(FetchContent)
 FetchContent_Declare(
   Catch2
   GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-  GIT_TAG        v3.0.1
+  GIT_TAG        v3.12.0
 )
 
 FetchContent_Declare(
   pattern_matcher
   GIT_REPOSITORY https://github.com/Fiskmans/PatternMatcher.git
-  GIT_TAG        cb3198bb39ba2555ee2b34ba6ef4987dd315beec
+  GIT_TAG        535d91998df65e70035c421352389f5ff6eb2c8b
 )
 
 FetchContent_MakeAvailable(pattern_matcher)

@@ -4,32 +4,32 @@
 
 namespace fisk::precompiler
 {
-    SourceChar SourceLine::SourceLineIterator::operator*()
+    SourceLine::Iterator::Iterator(std::ranges::iterator_t<std::string> aStart, SourceChar aDefaults)
     {
-        return {
-            myLine->myFile,
-            myLine->myLine,
-            myIndex,
-            myLine->myText[myIndex]
-        };
+        myStart = aStart;
+        myInner = aStart;
+        myDefaults = aDefaults;
     }
 
-    SourceLine::SourceLineIterator& SourceLine::SourceLineIterator::operator++()
+    SourceChar SourceLine::Iterator::operator*() const
     {
-        myIndex++;
+        SourceChar decorated{myDefaults};
+        decorated.myCharacter = *myInner;
+        decorated.myColumn = std::distance(myStart, myInner);
+        return decorated;
+    }
+
+    SourceLine::Iterator& SourceLine::Iterator::operator++()
+    {
+        myInner++;
         return *this;
     }
 
-    bool SourceLine::SourceLineIterator::operator==(nullptr_t)
+    SourceLine::Iterator SourceLine::Iterator::operator++(int)
     {
-        return myIndex == myLine->myText.length();
-    }
-
-    bool SourceLine::SourceLineIterator::operator==(SourceLineIterator aOther)
-    {
-        assert(&myLine == &aOther.myLine && "Unrelated iterators are being compared");
-
-        return myIndex == aOther.myIndex;
+        Iterator copy{*this};
+        ++(*this);
+        return copy;
     }
 
     bool SourceChar::operator==(const char aOther) const
@@ -37,14 +37,14 @@ namespace fisk::precompiler
         return myCharacter == aOther;
     }
 
-    SourceLine::SourceLineIterator SourceLine::begin()
+    SourceLine::Iterator SourceLine::begin()
     {
-        return { this };
+        return Iterator(std::ranges::begin(myText), { myFile, myLine, 0, '\0'});
     }
 
-    nullptr_t SourceLine::end()
+    SourceLine::Iterator SourceLine::end()
     {
-        return nullptr;
+        return Iterator(std::ranges::end(myText), { myFile, myLine, 0, '\0'});
     }
 
 }

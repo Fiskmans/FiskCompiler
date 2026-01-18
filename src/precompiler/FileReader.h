@@ -18,8 +18,8 @@ namespace fisk::precompiler
 		SourceLine operator*();
 		FileReader& operator++();
 
-		bool operator== (nullptr_t aOther);
-		bool operator!= (nullptr_t aOther);
+		bool operator== (std::nullptr_t aOther);
+		bool operator!= (std::nullptr_t aOther);
 
 	private:
 

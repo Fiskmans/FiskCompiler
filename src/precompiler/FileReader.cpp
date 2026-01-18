@@ -27,11 +27,11 @@ namespace fisk::precompiler
 		return *this;
 	}
 
-	bool FileReader::operator==(nullptr_t aOther)
+	bool FileReader::operator==(std::nullptr_t aOther)
 	{
 		return myLineReader == aOther;
 	}
-	bool FileReader::operator!=(nullptr_t aOther)
+	bool FileReader::operator!=(std::nullptr_t aOther)
 	{
 		return myLineReader != aOther;
 	}

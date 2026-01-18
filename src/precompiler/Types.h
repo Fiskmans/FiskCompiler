@@ -8,7 +8,7 @@
 namespace fisk::precompiler
 {
 	template<class BeginIterator, class EndIterator>
-	struct SimpleRange
+	struct SimpleRangeWrapper
 	{
 		BeginIterator myBegin = {};
 		EndIterator myEnd = {};
@@ -25,13 +25,7 @@ namespace fisk::precompiler
 	};
 
 	template<class Iterator>
-	using SentinelRange = SimpleRange<Iterator, nullptr_t>;
-
-	template<class Range>
-	using BeginIteratorOf = decltype(std::begin(std::declval<Range>()));
-
-	template<class Range>
-	using EndIteratorOf = decltype(std::end(std::declval<Range>()));
+	using SentinelRange = SimpleRangeWrapper<Iterator, std::nullptr_t>;
 
 	template<class Iterator>
 	using ValueType = decltype(*std::declval<Iterator>());
@@ -40,6 +34,8 @@ namespace fisk::precompiler
 	class UnpackingIterator
 	{
 	public:
+		using inner_range_t = std::iter_value_t<BaseIterator>;
+		using inner_value_t = std::ranges::range_value_t<inner_range_t>;
 
 		UnpackingIterator(BaseIterator aIterator)
 			: myAt(aIterator)
@@ -49,7 +45,7 @@ namespace fisk::precompiler
 		UnpackingIterator(const UnpackingIterator& aOther) = default;
 		UnpackingIterator& operator=(const UnpackingIterator& aOther) = default;
 
-		auto operator*()
+		inner_value_t operator*()
 		{
 			while (!myInnerAt)
 			{
@@ -107,7 +103,7 @@ namespace fisk::precompiler
 
 	private:
 		BaseIterator myAt;
-		std::optional<BeginIteratorOf<ValueType<BaseIterator>>> myInnerAt;
+		std::optional<std::ranges::iterator_t<inner_range_t>> myInnerAt;
 	};
 
 
@@ -129,18 +125,39 @@ namespace fisk::precompiler
 		std::string myText;
 		size_t myLine;
 
-		struct SourceLineIterator
+		class Iterator
 		{
-			SourceLine* myLine;
-			size_t myIndex = 0;
+		public:
+			using InnerIterator = std::ranges::iterator_t<std::string>;
 
-			SourceChar operator*();
-			SourceLineIterator& operator++();
-			bool operator==(nullptr_t);
-			bool operator==(SourceLineIterator aOther);
+			using iterator_category = InnerIterator::iterator_category;
+			using difference_type	= InnerIterator::difference_type;
+
+			using value_type 		= SourceChar; 
+			using pointer			= value_type*;
+			using reference			= value_type&;
+
+			Iterator() = default;
+			Iterator(InnerIterator aStart, SourceChar aDefaults);
+
+			SourceChar 	operator*() const;
+			Iterator& 	operator++();
+			Iterator 	operator++(int);
+
+			template<class T>
+			bool operator==(T&& aOther) { return myInner == std::forward<T>(aOther); }
+			template<class T>
+			bool operator==(T&& aOther) const { return myInner == std::forward<T>(aOther); }
+
+		private:
+			InnerIterator myStart;
+			InnerIterator myInner;
+			SourceChar myDefaults;
 		};
 
-		SourceLineIterator begin();
-		nullptr_t end();
+		Iterator begin();
+		Iterator end();
 	};
+
+	static_assert(std::ranges::range<SourceLine>);
 }

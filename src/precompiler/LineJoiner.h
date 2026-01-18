@@ -20,13 +20,13 @@ namespace fisk::precompiler
 		LineJoiner(std::unique_ptr<FileReader> aFile);
 
 		using Lines = std::vector<SourceLine>;
-		using Range = SimpleRange<UnpackingIterator<Lines::iterator>, Lines::iterator>;
+		using Range = SimpleRangeWrapper<UnpackingIterator<Lines::iterator>, Lines::iterator>;
 
 		Range operator*();
 		LineJoiner& operator++();
 
-		bool operator==(nullptr_t aOther);
-		bool operator!=(nullptr_t aOther);
+		bool operator==(std::nullptr_t aOther);
+		bool operator!=(std::nullptr_t aOther);
 
 	private:
 

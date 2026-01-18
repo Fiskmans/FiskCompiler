@@ -24,7 +24,7 @@ namespace fisk::precompiler
 		return *this;
 	}
 
-	bool LineJoiner::operator==(nullptr_t aOther)
+	bool LineJoiner::operator==(std::nullptr_t aOther)
 	{
 		if (!myLines.empty())
 			return false;
@@ -32,7 +32,7 @@ namespace fisk::precompiler
 		return *myFile == aOther;
 	}
 
-	bool LineJoiner::operator!=(nullptr_t aOther)
+	bool LineJoiner::operator!=(std::nullptr_t aOther)
 	{
 		if (!myLines.empty())
 			return true;

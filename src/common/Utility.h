@@ -3,6 +3,7 @@
 #define COMMON_UTILITY_H
 
 #include <ranges>
+#include <concepts>
 
 namespace common {
 

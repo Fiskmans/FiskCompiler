@@ -4,6 +4,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <string>
+#include <vector>
 
 class FeatureSwitch
 {

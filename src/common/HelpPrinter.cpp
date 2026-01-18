@@ -63,8 +63,11 @@ void HelpPrinter::Setup()
 	std::string line;
 	while (std::getline(helpFile, line))
 	{
-#if _WIN32
+#if defined(_WIN32)
 		if(line == ":windows")
+			break;
+#elif defined(__linux__)
+		if(line == ":linux")
 			break;
 #else
 #error "unkown platform"
