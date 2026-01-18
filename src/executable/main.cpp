@@ -33,47 +33,6 @@ std::optional<std::ofstream> GetArtifactsFile(std::filesystem::path aPath, std::
 	return {};
 }
 
-void DumpTokens(std::vector<tokenizer::Token>& tokens, std::filesystem::path aPath)
-{
-	std::string line;
-	std::string annotation;
-	std::ostream* out = &std::cout;
-	std::ofstream file;
-	size_t columnLimit = 120;
-
-	if (std::optional<std::ofstream> dumpFile = GetArtifactsFile(aPath, ".tok"))
-	{
-		if (*dumpFile)
-		{
-			file = std::move(*dumpFile);
-			out = &file;
-			columnLimit = -1;
-		}
-		else
-		{
-			CompilerContext::EmitError("Failed to create file to write token output to", aPath);
-			return;
-		}
-	}
-
-
-	for (tokenizer::Token& tok : tokens)
-	{
-		while (annotation.length() > line.length()) { line += ' '; }
-		while (line.length() > annotation.length()) { annotation += ' '; }
-		line += Escape(tok.myRawText);
-		annotation += "[" + tokenizer::Token::TypeToString(tok.myType) + "]";
-
-		if (tok.myType == tokenizer::Token::Type::NewLine || line.length() > columnLimit)
-		{
-			*out << line << "\n" << annotation << "\n\n";
-			line = "";
-			annotation = "";
-		}
-	}
-	*out << line << "\n" << annotation << "\n\n";
-}
-
 void printHelp()
 {
 	HelpPrinter printer;
