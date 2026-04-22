@@ -6,6 +6,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <ostream>
+#include <cassert>
 
 namespace fisk::precompiler
 {
@@ -109,7 +111,7 @@ template <class InnerIterator> class ReIterator
 {
   public:
     using iterator_category = std::forward_iterator_tag;
-    using difference_type = ssize_t;
+    using difference_type = std::ptrdiff_t;
 
     using value_type = std::iterator_traits<InnerIterator>::value_type;
     using pointer = value_type *;
@@ -258,6 +260,6 @@ inline std::ostream &operator<<(std::ostream &os, const std::nullptr_t &value)
 
 inline std::ostream &operator<<(std::ostream &os, const fisk::precompiler::SourceLine &value)
 {
-    os << value.myPath << "#L" << value.myLine << " \"" << value.myText << "\"";
+    os << value.myPath << std::string("#L") << std::to_string(value.myLine) << std::string(" \"") << value.myText << std::string("\"");
     return os;
 }

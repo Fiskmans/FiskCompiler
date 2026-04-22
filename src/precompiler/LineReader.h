@@ -16,7 +16,7 @@ namespace fisk::precompiler
 	{
 	public:
 		using iterator_category = std::input_iterator_tag;
-		using difference_type	= ssize_t;
+		using difference_type	= std::ptrdiff_t;
 
 		using value_type 		= SourceLine; 
 		using pointer			= value_type*;

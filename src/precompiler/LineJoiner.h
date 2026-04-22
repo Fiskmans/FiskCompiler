@@ -20,6 +20,13 @@ namespace fisk::precompiler
 		using Lines = std::vector<SourceLine>;
 		using Range = SimpleRangeWrapper<UnpackingIterator<Lines::iterator>, Lines::iterator>;
 
+		using iterator_category = std::iterator_traits<LineReader>::iterator_category;
+        using difference_type = std::iterator_traits<LineReader>::difference_type;
+
+        using value_type = Range;
+        using pointer = value_type *;
+        using reference = value_type &;
+
 		Range operator*();
 		LineJoiner& operator++();
 

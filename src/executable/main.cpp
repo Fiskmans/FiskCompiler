@@ -70,7 +70,7 @@ int main(int argc, char** argv)
 
 	for (std::filesystem::path path : files)
 	{
-		auto file = fisk::precompiler::Precompile(path);
+		auto file = fisk::precompiler::Precompile(path.string());
 
 		if (CompilerContext::GetFlag("o:type") == "precompiled")
 			EmitLines(file);
