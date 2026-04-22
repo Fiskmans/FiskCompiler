@@ -5,6 +5,7 @@
 #include "common/CompilerContext.h"
 #include "common/HelpPrinter.h"
 
+#include "precompiler/Types.h"
 #include "precompiler/Precompiler.h"
 
 
@@ -39,6 +40,23 @@ void printHelp()
 	printer.Emit();
 }
 
+template<class Range>
+void EmitLine(Range aLine)
+{
+	for(auto c : aLine)
+		fprintf(stderr, "%c", static_cast<char>(c));
+ 
+	fprintf(stderr, "\n");
+}
+
+template<class Range>
+void EmitLines(Range aRangeOfLines)
+{
+	for(auto line : aRangeOfLines)
+	{
+		EmitLine(line);
+	}
+}
 
 int main(int argc, char** argv)
 {
@@ -53,6 +71,10 @@ int main(int argc, char** argv)
 	for (std::filesystem::path path : files)
 	{
 		auto file = fisk::precompiler::Precompile(path);
+
+		if (CompilerContext::GetFlag("o:type") == "precompiled")
+			EmitLines(file);
+			
 	}
 
 	return CompilerContext::HasErrors() ? EXIT_FAILURE : EXIT_SUCCESS;

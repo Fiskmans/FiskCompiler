@@ -5,12 +5,12 @@
 
 TEST_CASE("precompiler::line_reader::basic", "")
 {
-	std::stringstream ss("Hello");
-
-	fisk::precompiler::LineReader reader(ss);
+	fisk::precompiler::LineReader reader(std::make_unique<std::stringstream>("Hello"), "test.txt");
 
 	REQUIRE((reader != nullptr));
-	REQUIRE(*reader == "Hello");
+	REQUIRE((*reader).myText == "Hello");
+	REQUIRE((*reader).myPath == "test.txt");
+	REQUIRE((*reader).myLine == 1);
 	
 	++reader;
 
@@ -19,19 +19,21 @@ TEST_CASE("precompiler::line_reader::basic", "")
 
 TEST_CASE("precompiler::line_reader::multiline_1", "")
 {
-	std::stringstream ss("Hello\nThere");
-
-	fisk::precompiler::LineReader reader(ss);
+	fisk::precompiler::LineReader reader(std::make_unique<std::stringstream>("Hello\nThere"), "test.txt");
 
 	REQUIRE((reader != nullptr));
-	REQUIRE(*reader == "Hello");
+	REQUIRE((*reader).myText == "Hello");
+	REQUIRE((*reader).myPath == "test.txt");
+	REQUIRE((*reader).myLine == 1);
 
 	++reader;
 
 	REQUIRE((reader != nullptr));
 
 	REQUIRE((reader != nullptr));
-	REQUIRE(*reader == "There");
+	REQUIRE((*reader).myText == "There");
+	REQUIRE((*reader).myPath == "test.txt");
+	REQUIRE((*reader).myLine == 2);
 
 	++reader;
 
@@ -40,22 +42,26 @@ TEST_CASE("precompiler::line_reader::multiline_1", "")
 
 TEST_CASE("precompiler::line_reader::multiline_2", "")
 {
-	std::stringstream ss("Hello\\\nThere\nGeneral");
-
-	fisk::precompiler::LineReader reader(ss);
+	fisk::precompiler::LineReader reader(std::make_unique<std::stringstream>("Hello\\\nThere\nGeneral"), "test.txt");
 
 	REQUIRE((reader != nullptr));
-	REQUIRE(*reader == "Hello\\");
+	REQUIRE((*reader).myText == "Hello\\");
+	REQUIRE((*reader).myPath == "test.txt");
+	REQUIRE((*reader).myLine == 1);
 
 	++reader;
 
 	REQUIRE((reader != nullptr));
-	REQUIRE(*reader == "There");
+	REQUIRE((*reader).myText == "There");
+	REQUIRE((*reader).myPath == "test.txt");
+	REQUIRE((*reader).myLine == 2);
 
 	++reader;
 
 	REQUIRE((reader != nullptr));
-	REQUIRE(*reader == "General");
+	REQUIRE((*reader).myText == "General");
+	REQUIRE((*reader).myPath == "test.txt");
+	REQUIRE((*reader).myLine == 3);
 
 	++reader;
 

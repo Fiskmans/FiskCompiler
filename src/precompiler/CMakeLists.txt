@@ -2,8 +2,6 @@
 
 list(APPEND SOURCE_FILES Types.h)
 list(APPEND SOURCE_FILES Types.cpp)
-list(APPEND SOURCE_FILES FileReader.h)
-list(APPEND SOURCE_FILES FileReader.cpp)
 list(APPEND SOURCE_FILES IncludeFinder.h)
 list(APPEND SOURCE_FILES IncludeFinder.cpp)
 list(APPEND SOURCE_FILES LineJoiner.h)

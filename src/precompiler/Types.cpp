@@ -37,14 +37,21 @@ namespace fisk::precompiler
         return myCharacter == aOther;
     }
 
+    bool SourceLine::operator==(const SourceLine &aOther) const
+    {
+        return myPath == aOther.myPath
+            && myText == aOther.myText
+            && myLine == aOther.myLine;
+    }
+
     SourceLine::Iterator SourceLine::begin()
     {
-        return Iterator(std::ranges::begin(myText), { myFile, myLine, 0, '\0'});
+        return Iterator(std::ranges::begin(myText), { myPath, myLine, 0, '\0'});
     }
 
     SourceLine::Iterator SourceLine::end()
     {
-        return Iterator(std::ranges::end(myText), { myFile, myLine, 0, '\0'});
+        return Iterator(std::ranges::end(myText), { myPath, myLine, 0, '\0'});
     }
 
 }

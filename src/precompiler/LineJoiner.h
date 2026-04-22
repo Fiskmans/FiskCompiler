@@ -1,12 +1,10 @@
 #pragma once
 
-#include "FileReader.h"
+#include "LineReader.h"
 #include "IncludeFinder.h"
 #include "Types.h"
 
-#include "pattern_matcher/PatternMatcher.h"
-
-
+#include <vector>
 #include <string>
 #include <memory>
 #include <stack>
@@ -17,7 +15,7 @@ namespace fisk::precompiler
 	class LineJoiner
 	{
 	public:
-		LineJoiner(std::unique_ptr<FileReader> aFile);
+		LineJoiner(std::shared_ptr<LineReader> aFile);
 
 		using Lines = std::vector<SourceLine>;
 		using Range = SimpleRangeWrapper<UnpackingIterator<Lines::iterator>, Lines::iterator>;
@@ -32,7 +30,7 @@ namespace fisk::precompiler
 
 		void Next();
 
-		std::unique_ptr<FileReader> myFile;
+		std::shared_ptr<LineReader> myFile;
 		Lines myLines;
 	};
 }

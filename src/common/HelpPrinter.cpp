@@ -39,7 +39,7 @@ void HelpPrinter::Emit()
 			<< "[" << section.myTag << "]\t"
 			<< section.myHeader << ":\n\t"
 			<< section.myDigest << "\n\t"
-			<< section.myExtended;
+			<< section.myExtended << "\n";
 		return;
 	}
 

@@ -4,12 +4,17 @@
 namespace fisk::precompiler
 {
 
-	LineReader::LineReader(std::istream& aStream)
-		: myStream(aStream)
+	LineReader::LineReader(std::shared_ptr<std::istream> aStream, std::string aSourcePath)
+		: myStream(aStream), mySourcePath(aSourcePath)
 	{
 	}
 
-	LineReader& LineReader::operator++()
+    LineReader::LineReader(std::string aSourcePath)
+		: myStream(std::make_shared<std::ifstream>(aSourcePath)), mySourcePath(aSourcePath)
+    {
+    }
+
+    LineReader& LineReader::operator++()
 	{
 		if (myState == State::UnPrimed)
 			NextLine();
@@ -19,12 +24,16 @@ namespace fisk::precompiler
 		return *this;
 	}
 
-	std::string LineReader::operator*()
+	SourceLine LineReader::operator*()
 	{
 		if (myState == State::UnPrimed)
 			NextLine();
 
-		return myLineBuffer;
+		return {
+			.myPath = mySourcePath,
+			.myText = myLineBuffer,
+			.myLine = myLineNumber
+		};
 	}
 
 	bool LineReader::operator==(const std::nullptr_t aOther)
@@ -44,7 +53,7 @@ namespace fisk::precompiler
 	{
 		myLineBuffer.clear();
 
-		if (!std::getline(myStream, myLineBuffer))
+		if (!std::getline(*myStream, myLineBuffer))
 		{
 			if (myLineBuffer.empty())
 				myState = State::EndOfFile;
@@ -52,6 +61,7 @@ namespace fisk::precompiler
 			return;
 		}
 
+		myLineNumber++;
 		myState = State::Primed;
 	}
 }

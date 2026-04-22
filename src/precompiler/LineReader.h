@@ -2,8 +2,12 @@
 #ifndef FISK_PRECOMPILER_LINE_READER_H
 #define FISK_PRECOMPILER_LINE_READER_H
 
+#include "precompiler/Types.h"
+
 #include <string>
 #include <fstream>
+#include <iterator>
+#include <memory>
 
 namespace fisk::precompiler
 {
@@ -11,10 +15,24 @@ namespace fisk::precompiler
 	class LineReader
 	{
 	public:
-		LineReader(std::istream& aStream);
+		using iterator_category = std::input_iterator_tag;
+		using difference_type	= ssize_t;
+
+		using value_type 		= SourceLine; 
+		using pointer			= value_type*;
+		using reference			= value_type&;
+		
+		LineReader(std::shared_ptr<std::istream> aStream, std::string aSourcePath);
+		LineReader(std::string aSourcePath);
+		LineReader(const LineReader&) = default;
+		LineReader(LineReader&&) = default;
+		~LineReader() = default;
+		
+		LineReader& operator=(const LineReader&) = default;
+		LineReader& operator=(LineReader&&) = default;
 
 		LineReader& operator++();
-		std::string operator*();
+		SourceLine operator*();
 
 		bool operator==(const std::nullptr_t aOther);
 		bool operator!=(const std::nullptr_t aOther);
@@ -32,7 +50,8 @@ namespace fisk::precompiler
 
 		State myState = State::UnPrimed;
 
-		std::istream& myStream;
+		std::shared_ptr<std::istream> myStream;
+		std::string mySourcePath;
 
 		std::string myLineBuffer;
 		size_t myLineNumber = 0;

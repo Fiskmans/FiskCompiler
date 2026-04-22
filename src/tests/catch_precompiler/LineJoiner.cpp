@@ -11,9 +11,9 @@ void RequireSame(fisk::precompiler::SourceChar aLeft, fisk::precompiler::SourceC
 	REQUIRE(aLeft.myLine == aRight.myLine);
 }
 
-void Test(std::string aFile, std::vector<std::vector<fisk::precompiler::SourceLine>> aExpected)
+void Test(std::string aContent, std::string aFile, std::vector<std::vector<fisk::precompiler::SourceLine>> aExpected)
 {
-	fisk::precompiler::LineJoiner joiner(std::make_unique<fisk::precompiler::FileReader>(aFile));
+	fisk::precompiler::LineJoiner joiner(std::make_shared<fisk::precompiler::LineReader>(std::make_shared<std::stringstream>(aContent), aFile));
 
 	auto at = std::begin(aExpected);
 
@@ -41,8 +41,8 @@ void Test(std::string aFile, std::vector<std::vector<fisk::precompiler::SourceLi
 			++r;
 		}
 
-		REQUIRE((l == std::end(left)));
-		REQUIRE((r == std::end(right)));
+		REQUIRE(l == std::end(left));
+		REQUIRE(r == std::end(right));
 
 		++joiner;
 		++at;
@@ -58,19 +58,21 @@ void Test(std::string aFile, std::vector<std::vector<fisk::precompiler::SourceLi
 	REQUIRE((at == std::end(aExpected)));
 }
 
-TEST_CASE("precompiler::file_joiner::basic", "")
+TEST_CASE("precompiler::line_joiner::basic", "")
 {
-	Test("test/precompiler/line_joiner/1_basic.txt", { 
+	Test("Hello \nthere", 
+		"1_basic.txt", 
+		{ 
 			{
 				{ 
-					"test/precompiler/line_joiner/1_basic.txt",
+					"1_basic.txt",
 					"Hello ",
 					1
 				}
 			},
 			{
 				{
-					"test/precompiler/line_joiner/1_basic.txt",
+					"1_basic.txt",
 					"there",
 					2
 				}
@@ -78,30 +80,34 @@ TEST_CASE("precompiler::file_joiner::basic", "")
 		});
 }
 
-TEST_CASE("precompiler::file_joiner::joined", "")
+TEST_CASE("precompiler::line_joiner::joined", "")
 {
-	Test("test/precompiler/line_joiner/2_joined.txt", {
+	Test("Hello \\\nthere", 
+		"2_joined.txt",
+		{
 			{
 				{
-					"test/precompiler/line_joiner/2_joined.txt",
+					"2_joined.txt",
 					"Hello ",
 					1
 				},
 				{
-					"test/precompiler/line_joiner/2_joined.txt",
+					"2_joined.txt",
 					"there",
 					2
 				}
 			}
-		 });
+		});
 }
 
-TEST_CASE("precompiler::file_joiner::empty", "")
+TEST_CASE("precompiler::line_joiner::empty", "")
 {
-	Test("test/precompiler/line_joiner/3_empty.txt", {
+	Test("Hello\n\nthere",
+		"3_empty.txt", 
+		{
 			{
 				{
-					"test/precompiler/line_joiner/3_empty.txt",
+					"3_empty.txt",
 					"Hello",
 					1
 				}
@@ -109,39 +115,43 @@ TEST_CASE("precompiler::file_joiner::empty", "")
 			{},
 			{
 				{
-					"test/precompiler/line_joiner/3_empty.txt",
+					"3_empty.txt",
 					"there",
 					3
 				}
 			}
-		 });
-	Test("test/precompiler/line_joiner/3_empty_2.txt", {
+		});
+	Test(
+		"Hello\n\\\nthere",
+		"3_empty_2.txt", 
+		{
 			{
 				{
-					"test/precompiler/line_joiner/3_empty_2.txt",
+					"3_empty_2.txt",
 					"Hello",
 					1
 				}
 			},
 			{
 				{
-					"test/precompiler/line_joiner/3_empty_2.txt",
+					"3_empty_2.txt",
 					"there",
 					3
 				}
 			}
 		 });
-	Test("test/precompiler/line_joiner/3_empty_3.txt", {
+	Test(
+		"Hello\\\n\\\nthere",
+		"3_empty_3.txt", 
+		{
 			{
 				{
-					"test/precompiler/line_joiner/3_empty_3.txt",
+					"3_empty_3.txt",
 					"Hello",
 					1
-				}
-			},
-			{
+				},
 				{
-					"test/precompiler/line_joiner/3_empty_3.txt",
+					"3_empty_3.txt",
 					"there",
 					3
 				}

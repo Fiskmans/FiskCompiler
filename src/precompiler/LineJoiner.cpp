@@ -1,11 +1,10 @@
 
-#include "FileReader.h"
 #include "LineJoiner.h"
 
 namespace fisk::precompiler
 {
-	LineJoiner::LineJoiner(std::unique_ptr<FileReader> aFile)
-		: myFile(std::move(aFile))
+	LineJoiner::LineJoiner(std::shared_ptr<LineReader> aFile)
+		: myFile(aFile)
 	{
 	}
 
