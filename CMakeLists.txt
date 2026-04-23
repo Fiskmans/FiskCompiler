@@ -23,7 +23,7 @@ FetchContent_Declare(
 FetchContent_Declare(
   pattern_matcher
   GIT_REPOSITORY https://github.com/Fiskmans/PatternMatcher.git
-  GIT_TAG        535d91998df65e70035c421352389f5ff6eb2c8b
+  GIT_TAG        db980fadef9303ef64c87e12b038ef4cefe6c4b9
 )
 
 FetchContent_MakeAvailable(pattern_matcher)
