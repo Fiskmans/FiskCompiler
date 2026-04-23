@@ -17,4 +17,4 @@ target_link_libraries(precompiler PUBLIC pattern_matcher)
 
 target_include_directories(precompiler PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(precompiler PUBLIC ${CMAKE_BINARY_DIR}/src)
-target_include_directories(precompiler PUBLIC ${pattern_matcher_SOURCE_DIR})
+target_include_directories(precompiler PUBLIC ${pattern_matcher_SOURCE_DIR}..)

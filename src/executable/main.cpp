@@ -62,6 +62,8 @@ int main(int argc, char** argv)
 {
 	std::vector<std::filesystem::path> files = CompilerContext::ParseCommandLine(argc, argv);
 
+	files.push_back("main.cpp");
+
 	if (files.empty() || CompilerContext::GetFlag("help") || CompilerContext::GetFlag("h"))
 	{
 		printHelp();

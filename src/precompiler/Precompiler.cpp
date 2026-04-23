@@ -1,13 +1,22 @@
 
-#include <optional>
-#include <filesystem>
-#include <variant>
-#include <functional>
-#include <ranges>
-
-#include <iostream>
-
-#include "common/CompilerContext.h"
-#include "common/IteratorRange.h"
 #include "precompiler/Precompiler.h"
-#include "tokenizer/tokenizer.h"
+
+#include "pattern_matcher/PatternBuilder.h"
+#include "pattern_matcher/PatternMatcher.h"
+
+namespace fisk::precompiler
+{
+    PrecompilationOutput Precompile(std::string aFile)
+    {
+        std::ifstream cppBNFFile("data/cpp.bnf");
+        std::stringstream cppBNF;
+        cppBNF << cppBNFFile.rdbuf();
+
+        pattern_matcher::PatternMatcher matcher = pattern_matcher::PatternBuilder::FromBNF(cppBNF.str());
+
+        return 
+            SentinelRange(
+                ReIterator(
+                    LineJoiner(std::make_shared<LineReader>(std::make_shared<std::ifstream>(aFile), aFile))));
+    }
+} // namespace fisk::precompiler
