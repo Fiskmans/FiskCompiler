@@ -4,6 +4,7 @@ list(APPEND Files UnpackingIterator.cpp)
 list(APPEND Files SourceLine.cpp)
 list(APPEND Files LineJoiner.cpp)
 list(APPEND Files Types.cpp)
+list(APPEND Files CPPBNF.cpp)
 
 add_executable(catch_precompiler ${Files})
 
