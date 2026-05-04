@@ -9,7 +9,7 @@ int main ()
 {
 }
 ```
-should compile down to
+should compile down to:
 
 ```asm
 xor eax, eax
