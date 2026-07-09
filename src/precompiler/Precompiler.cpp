@@ -16,7 +16,7 @@ namespace fisk::precompiler
 
     Precompiler::Precompiler(std::string aFile) : myState(State::Empty)
     {
-        if (ourPreprocessor["preprocessing-file"])
+        if (!ourPreprocessor["preprocessing-file"])
         {
             std::ifstream cppBNFFile("data/cpp.bnf.md");
             std::stringstream cppBNF;
