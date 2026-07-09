@@ -41,7 +41,7 @@ void printHelp()
 }
 
 template<class Range>
-void EmitLine(Range aLine)
+void EmitLine(const Range& aLine)
 {
 	for(auto c : aLine)
 		fprintf(stderr, "%c", static_cast<char>(c));
@@ -50,7 +50,7 @@ void EmitLine(Range aLine)
 }
 
 template<class Range>
-void EmitLines(Range aRangeOfLines)
+void EmitLines(const Range& aRangeOfLines)
 {
 	for(auto line : aRangeOfLines)
 	{

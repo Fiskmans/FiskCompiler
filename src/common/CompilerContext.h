@@ -9,8 +9,9 @@
 #include <optional>
 #include <filesystem>
 
-#include "tokenizer/token.h"
 #include "common/FeatureSwitch.h"
+#include "precompiler/Types.h"
+#include "precompiler/LineReader.h"
 
 namespace {
 	thread_local size_t dummy;
@@ -22,22 +23,11 @@ std::string Dequote(std::string aString);
 class CompilerContext
 {
 public:
-	static void EmitWarning(const std::string& aMessage, const tokenizer::Token& aToken);
-	static void EmitWarning(const std::string& aMessage, std::filesystem::path aFile = myFileStack.top(), size_t aColumn = npos, size_t aLine = myCurrentLine, size_t aSize = 1);
 
-	static void EmitError(const std::string& aMessage, const tokenizer::Token& aToken);
-	static void EmitError(const std::string& aMessage, std::filesystem::path aFile = myFileStack.top(), size_t aColumn = npos, size_t aLine = myCurrentLine, size_t aSize = 1);
+	static void EmitWarning(const std::string &aTag, fisk::precompiler::SourceChar aAt, fisk::precompiler::SourceChar aUntil = {});
+	static void EmitError(const std::string &aTag, fisk::precompiler::SourceChar aAt, fisk::precompiler::SourceChar aUntil = {});
 
-	static std::optional<std::filesystem::path> FindFile(const std::filesystem::path& aPath, bool aExpandedLookup = false);
-
-	static void SetPrintContext(const std::vector<std::string>& aPrintContext);
-	static void SetCurrentLine(size_t aLine);
-	static size_t GetCurrentLine();
-
-	static void PushFile(const std::filesystem::path& aFile);
-	static void PopFile();
-
-	static std::filesystem::path GetCurrentFile();
+	static void RegisterFile(fisk::precompiler::ReIterator<fisk::precompiler::LineReader> aFileStart, const std::string& aFilePath);
 
 	static bool HasErrors() { return myHasErrors; };
 
@@ -61,14 +51,21 @@ public:
 	static IgnoreHandle IgnoreErrors();
 
 private:
+    enum class ConsoleColor
+    {
+		Reset,
+        Red,
+        Yellow
+    };
 
+    static void PrintContext(std::ostream &aStream, ConsoleColor aColor, fisk::precompiler::SourceChar aAt, fisk::precompiler::SourceChar aUntil);
+    static void ChangeColor(std::ostream &aStream, ConsoleColor aColor);
+    static bool ShouldWarn(const std::string& aTag);
+
+	static std::unordered_map<std::string, fisk::precompiler::ReIterator<fisk::precompiler::LineReader>> myFiles;
 	static FeatureSwitch								myWarningSwitches;
 	static size_t										myIgnoreDepth;
 	static bool											myHasErrors;
-	static size_t										myCurrentLine;
-	static std::stack<std::filesystem::path>			myFileStack;
-	static std::vector<std::string>						myPrintContext;
-	static std::stack<std::vector<std::string>>			myPrintContextStack;
 	static std::vector<std::filesystem::path>			myBaseDirectories;
 	static std::vector<std::filesystem::path>			myAdditionalDirectories;
 	static std::unordered_map<std::string, std::string> myFlags;

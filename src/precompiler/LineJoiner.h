@@ -15,6 +15,8 @@ namespace fisk::precompiler
 	class LineJoiner
 	{
 	public:
+        LineJoiner() = default;
+        LineJoiner(const LineJoiner&) = default;
 		LineJoiner(std::shared_ptr<LineReader> aFile);
 
 		using Lines = std::vector<SourceLine>;
@@ -27,8 +29,9 @@ namespace fisk::precompiler
         using pointer = value_type *;
         using reference = value_type &;
 
-		Range operator*();
+		Range& operator*() const;
 		LineJoiner& operator++();
+        LineJoiner operator++(int);
 
 		bool operator==(std::nullptr_t aOther);
 		bool operator!=(std::nullptr_t aOther);
@@ -39,5 +42,6 @@ namespace fisk::precompiler
 
 		std::shared_ptr<LineReader> myFile;
 		Lines myLines;
+        mutable Range myItem;
 	};
 }

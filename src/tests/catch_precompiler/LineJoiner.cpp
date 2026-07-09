@@ -66,7 +66,7 @@ TEST_CASE("precompiler::line_joiner::basic", "")
 			{
 				{ 
 					"1_basic.txt",
-					"Hello ",
+					"Hello \n",
 					1
 				}
 			},
@@ -108,11 +108,17 @@ TEST_CASE("precompiler::line_joiner::empty", "")
 			{
 				{
 					"3_empty.txt",
-					"Hello",
+					"Hello\n",
 					1
 				}
 			},
-			{},
+			{
+				{
+					"3_empty.txt",
+					"\n",
+					2
+				}
+			},
 			{
 				{
 					"3_empty.txt",
@@ -128,7 +134,7 @@ TEST_CASE("precompiler::line_joiner::empty", "")
 			{
 				{
 					"3_empty_2.txt",
-					"Hello",
+					"Hello\n",
 					1
 				}
 			},
@@ -157,4 +163,31 @@ TEST_CASE("precompiler::line_joiner::empty", "")
 				}
 			}
 		 });
+}
+
+TEST_CASE("precompiler::line_joiner::whitespace", "")
+{
+	Test("Hello \\ \t\b\r\v\n\nthere",
+		"3_empty.txt", 
+		{
+			{
+				{
+					"3_empty.txt",
+					"Hello ",
+					1
+				},
+				{
+					"3_empty.txt",
+					"\n",
+					2
+				}
+			},
+			{
+				{
+					"3_empty.txt",
+					"there",
+					3
+				}
+			}
+		});
 }

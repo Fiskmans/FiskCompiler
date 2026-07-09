@@ -22,18 +22,20 @@ namespace fisk::precompiler
 		using pointer			= value_type*;
 		using reference			= value_type&;
 		
-		LineReader(std::shared_ptr<std::istream> aStream, std::string aSourcePath);
-		LineReader(std::string aSourcePath);
+		LineReader() = default;
 		LineReader(const LineReader&) = default;
 		LineReader(LineReader&&) = default;
+		LineReader(std::shared_ptr<std::istream> aStream, std::string aSourcePath);
 		~LineReader() = default;
 		
 		LineReader& operator=(const LineReader&) = default;
 		LineReader& operator=(LineReader&&) = default;
 
 		LineReader& operator++();
-		SourceLine operator*();
+		LineReader operator++(int);
+		SourceLine& operator*() const;
 
+		bool operator==(const LineReader&) const = default;
 		bool operator==(const std::nullptr_t aOther);
 		bool operator!=(const std::nullptr_t aOther);
 
@@ -49,12 +51,9 @@ namespace fisk::precompiler
 		};
 
 		State myState = State::UnPrimed;
-
 		std::shared_ptr<std::istream> myStream;
-		std::string mySourcePath;
 
-		std::string myLineBuffer;
-		size_t myLineNumber = 0;
+        mutable SourceLine myItem;
 	};
 }
 

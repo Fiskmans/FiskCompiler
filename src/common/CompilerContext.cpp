@@ -1,4 +1,4 @@
-#include "common/CompilerContext.h"
+﻿#include "common/CompilerContext.h"
 
 #include <iostream>
 
@@ -12,12 +12,9 @@ FeatureSwitch CompilerContext::myWarningSwitches("data/warnings.txt");
 std::vector<std::filesystem::path> CompilerContext::myBaseDirectories;
 std::vector<std::filesystem::path> CompilerContext::myAdditionalDirectories;
 
-std::vector<std::string> CompilerContext::myPrintContext;
-std::stack<std::vector<std::string>> CompilerContext::myPrintContextStack;
-std::stack<std::filesystem::path> CompilerContext::myFileStack;
+std::unordered_map<std::string, fisk::precompiler::ReIterator<fisk::precompiler::LineReader>> CompilerContext::myFiles;
 size_t CompilerContext::myIgnoreDepth = 0;
 bool CompilerContext::myHasErrors = false;
-size_t CompilerContext::myCurrentLine = 0;
 std::unordered_map<std::string, std::string> CompilerContext::myFlags;
 
 std::string Escape(std::string aString, size_t& aOutEscapeCount)
@@ -37,12 +34,12 @@ std::string Escape(std::string aString, size_t& aOutEscapeCount)
 		out += aString.substr(at,pos-at);
 		switch (aString[pos])
 		{
-		case '\t': out += "\\t"; break;
-		case '\n': out += "\\n"; break;
-		case '\r': out += "\\r"; break;
-		case '\a': out += "\\a"; break;
-		case '\v': out += "\\v"; break;
-		case '\b': out += "\\b"; break;
+		case '\t': out += "\u2192"; break; // →
+		case '\n': out += "\u00b6"; break; // ¶
+		case '\r': out += "\u2b10"; break; // ⬐
+		case '\a': out += "?"; break;
+		case '\v': out += "?"; break;
+		case '\b': out += "?"; break;
 		}
 		at = pos + 1;
 	}
@@ -60,249 +57,93 @@ std::string Dequote(std::string aString)
 }
 
 
-void CompilerContext::EmitWarning(const std::string& aMessage, const tokenizer::Token& aToken)
+void CompilerContext::EmitWarning(const std::string& aTag, fisk::precompiler::SourceChar aAt, fisk::precompiler::SourceChar aUntil)
 {
-	EmitWarning(aMessage, aToken.myFile, aToken.myColumn, aToken.myLine, aToken.myRawText.length());
-}
+    if (!ShouldWarn(aTag))
+        return;
 
-void CompilerContext::EmitWarning(const std::string& aMessage,std::filesystem::path aFile, size_t aColumn, size_t aLine, size_t aSize)
-{
 	if (myIgnoreDepth > 0)
 		return;
 
-#if _WIN32
-	std::cout << std::flush;
-	 HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-	 CONSOLE_SCREEN_BUFFER_INFO screenBufferInfo;
-	 if(!GetConsoleScreenBufferInfo(hConsole, &screenBufferInfo))
-		 return;
-	
-	 const WORD backgroundMask = BACKGROUND_BLUE | BACKGROUND_GREEN | BACKGROUND_INTENSITY | BACKGROUND_RED;
+	std::ostream& output = std::cerr;
 
-	 if(!SetConsoleTextAttribute(hConsole, FOREGROUND_GREEN | FOREGROUND_RED | (screenBufferInfo.wAttributes & backgroundMask)))
-		 return;
-#endif
-
-	std::cout << "WARNING";
-
-#if _WIN32
-	std::cout << std::flush;
-	if(!SetConsoleTextAttribute(hConsole, screenBufferInfo.wAttributes))
-		 return;
-#endif
-
-	std::cout << " " << aMessage <<  " [in file " << aFile.string() << ":" << aLine << ":" ;
-
-	if (aColumn == npos)
-	{
-		std::cout << "eol";
-	}
-	else
-	{
-		std::cout << aColumn;
-	}
-
-	std::cout << "] " << "\n";
-
-	if (myPrintContext.size() > aLine)
-	{
-		if(aColumn == npos)
-		{
-			std::string line = Escape(myPrintContext[aLine]);
-			std::cout << line << "\n";
-			for(size_t i = 0; i < line.length(); i++)
-			{
-				std::cout << ' ';
-			}
-		}
-		else
-		{
-			size_t offset = 0;
-			std::cout << Escape(myPrintContext[aLine], offset) << "\n";
-			for (size_t i = 0; i < aColumn + offset; i++)
-			{
-				std::cout << ' ';
-			}
-		}
-
-#if _WIN32
-	std::cout << std::flush;
-	 if(!SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY | (screenBufferInfo.wAttributes & backgroundMask)))
-		 return;
-#endif
-
-		std::cout << '^';
-		for (size_t i = 0; i < aSize - 1; i++)
-		{
-			std::cout << '~';
-		}
-
-#if _WIN32
-	std::cout << std::flush;
-	if(!SetConsoleTextAttribute(hConsole, screenBufferInfo.wAttributes))
-		 return;
-#endif
-
-		std::cout << "\n\n";
-	}
+    ChangeColor(output, ConsoleColor::Yellow);
+	output << "WARNING" << aTag;
+    PrintContext(output, ConsoleColor::Yellow, aAt, aUntil);
 }
 
-void CompilerContext::EmitError(const std::string& aMessage, const tokenizer::Token& aToken)
-{
-	EmitError(aMessage, aToken.myFile, aToken.myColumn, aToken.myLine, aToken.myRawText.length());
-}
 
-void CompilerContext::EmitError(const std::string& aMessage, std::filesystem::path aFile, size_t aColumn, size_t aLine, size_t aSize)
+void CompilerContext::EmitError(const std::string& aTag, fisk::precompiler::SourceChar aAt, fisk::precompiler::SourceChar aUntil)
 {
 	if (myIgnoreDepth > 0)
 		return;
 
 	myHasErrors = true;
 	
-#if _WIN32
-	std::cout << std::flush;
-	 HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-	 CONSOLE_SCREEN_BUFFER_INFO screenBufferInfo;
-	 if(!GetConsoleScreenBufferInfo(hConsole, &screenBufferInfo))
-		 return;
-	
-	 const WORD backgroundMask = BACKGROUND_BLUE | BACKGROUND_GREEN | BACKGROUND_INTENSITY | BACKGROUND_RED;
+	std::ostream &output = std::cerr;
 
-	 if(!SetConsoleTextAttribute(hConsole, FOREGROUND_RED | (screenBufferInfo.wAttributes & backgroundMask)))
-		 return;
-#endif
-
-	std::cerr << "ERROR";
-	
-#if _WIN32
-	std::cout << std::flush;
-	if(!SetConsoleTextAttribute(hConsole, screenBufferInfo.wAttributes))
-		 return;
-#endif
-	std::cout << " " << aMessage << " [in file " << aFile.string() << ":" << aLine << ":";
-	
-	if (aColumn == npos)
-	{
-		std::cout << "eol";
-	}
-	else
-	{
-		std::cout << aColumn;
-	}
-
-	std::cout << "] "  << "\n";
-	if (myPrintContext.size() > aLine)
-	{
-		if (aColumn == npos)
-		{
-			std::string line = Escape(myPrintContext[aLine]);
-			std::cout << line << "\n";
-			for (size_t i = 0; i < line.length(); i++)
-			{
-				std::cout << ' ';
-			}
-		}
-		else
-		{
-			size_t offset = 0;
-			std::cout << Escape(myPrintContext[aLine], offset) << "\n";
-			for (size_t i = 0; i < aColumn + offset; i++)
-			{
-				std::cout << ' ';
-			}
-		}
-
-#if _WIN32
-		std::cout << std::flush;
-		 if(!SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY | (screenBufferInfo.wAttributes & backgroundMask)))
-			 return;
-#endif
-
-		std::cout << '^';
-		for (size_t i = 0; i < aSize - 1; i++)
-		{
-			std::cout << '~';
-		}
-
-#if _WIN32
-		std::cout << std::flush;
-		if(!SetConsoleTextAttribute(hConsole, screenBufferInfo.wAttributes))
-			 return;
-#endif
-
-		std::cout << "\n\n";
-	}
+    ChangeColor(output, ConsoleColor::Red);
+    output << "ERROR " << aTag;
+    PrintContext(output, ConsoleColor::Red, aAt, aUntil);
 }
 
-std::optional<std::filesystem::path> CompilerContext::FindFile(const std::filesystem::path& aPath, bool aExpandedLookup)
+void CompilerContext::RegisterFile(fisk::precompiler::ReIterator<fisk::precompiler::LineReader> aFileStart,
+                                   const std::string& aFilePath)
 {
-	if (aExpandedLookup)
-	{
-		for (std::filesystem::path& dir : myBaseDirectories)
-		{
-			std::filesystem::path fullPath = dir;
-			fullPath /= aPath;
-			if (std::filesystem::exists(fullPath))
-			{
-				return fullPath;
-			}
-		}
-	}
-
-	std::filesystem::path fullPath = myFileStack.top().parent_path();
-	fullPath /= aPath;
-	if (std::filesystem::exists(fullPath))
-	{
-		return fullPath;
-	}
-
-	for (std::filesystem::path& dir : myAdditionalDirectories)
-	{
-		std::filesystem::path fullPath = dir;
-		fullPath /= aPath;
-		if (std::filesystem::exists(fullPath))
-		{
-			return fullPath;
-		}
-	}
-
-
-	return {};
+    myFiles.insert({aFilePath, aFileStart});
 }
 
-void CompilerContext::SetPrintContext(const std::vector<std::string>& aPrintContext)
+void CompilerContext::PrintContext(std::ostream& aStream, ConsoleColor aColor, fisk::precompiler::SourceChar aAt, fisk::precompiler::SourceChar aUntil)
 {
-	myPrintContext = aPrintContext;
-}
+    ChangeColor(aStream, ConsoleColor::Reset);
+    aStream << aAt.myFilePath << ":" << aAt.myLine << ":" << aAt.myColumn << std::endl;
 
-void CompilerContext::SetCurrentLine(size_t aLine)
-{
-	myCurrentLine = aLine;
-}
+    decltype(myFiles)::iterator fileIt = myFiles.find(aAt.myFilePath);
+    if (fileIt == myFiles.end())
+    {
+        aStream << "Unable to print context, " << aAt.myFilePath << " has not been loaded" << std::endl;
+        return;
+    }
 
-size_t CompilerContext::GetCurrentLine()
-{
-	return myCurrentLine;
-}
+    fisk::precompiler::ReIterator<fisk::precompiler::LineReader> fileReader = fileIt->second;
 
-void CompilerContext::PushFile(const std::filesystem::path& aFile)
-{
-	myFileStack.push(aFile);
-	myPrintContextStack.push(myPrintContext);
-}
+    for (size_t i = 1; i < aAt.myLine; i++)
+    {
+        if (fileReader == nullptr)
+        {
+            aStream << "Unable to print context, Error is past end of file" << std::endl;
+            return;
+        }
+        fileReader++;
+    }
 
-void CompilerContext::PopFile()
-{
-	myFileStack.pop();
-	SetPrintContext(myPrintContextStack.top());
-	myPrintContextStack.pop();
-}
+    aStream << *fileReader << std::endl;
 
-std::filesystem::path CompilerContext::GetCurrentFile()
-{
-	if (myFileStack.empty())
-		return "/none";
-	return myFileStack.top();
+	ChangeColor(aStream, aColor);
+
+    for (size_t i = 0; i < aAt.myColumn; i++)
+        aStream << ' ';
+
+    aStream << '^';
+
+    if (aAt.myFilePath != aUntil.myFilePath || aAt.myLine != aUntil.myLine)
+    {
+        for (size_t i = aAt.myColumn + 1; i < (*fileReader).myText.length(); i++)
+        {
+            aStream << '~';
+        }
+
+        aStream << " [Continues]" << std::endl;
+        ChangeColor(aStream, ConsoleColor::Reset);
+        return;
+    }
+
+    for (size_t i = aAt.myColumn + 1; i < aUntil.myColumn; i++)
+    {
+        aStream << '~';
+    }
+    aStream << std::endl;
+    ChangeColor(aStream, ConsoleColor::Reset);
 }
 
 bool MatchesPattern(std::string aFilePath, std::string aPattern)
@@ -500,6 +341,34 @@ bool CompilerContext::IsWarningEnabled(const std::string& aWarning)
 CompilerContext::IgnoreHandle CompilerContext::IgnoreErrors()
 {
 	return IgnoreHandle(myIgnoreDepth);
+}
+
+void CompilerContext::ChangeColor(std::ostream &aStream, ConsoleColor aColor)
+{
+	switch (aColor)
+	{
+    case ConsoleColor::Reset:
+        aStream << "\u001b[0m";
+        break;
+    case ConsoleColor::Red:
+        aStream << "\u001b[31m";
+        break;
+    case ConsoleColor::Yellow:
+        aStream << "\u001b[32m";
+        break;
+	}
+}
+
+bool CompilerContext::ShouldWarn(const std::string& aTag)
+{
+    std::optional<std::string> flag = GetFlag("w:" + aTag);
+    if (!flag)
+        return true;
+
+	if (*flag == "no")
+        return false;
+
+    return true;
 }
 
 CompilerContext::IgnoreHandle::IgnoreHandle(size_t& aIgnoreDepthPtr)

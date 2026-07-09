@@ -32,3 +32,23 @@ TEST_CASE("precompiler::types::unpacking_iterator", "[iterator]")
 	++unpacker;
 	REQUIRE((unpacker == end));
 }
+
+namespace static_test
+{
+	using Iter = std::vector<int>*;
+	static_assert(std::input_iterator<Iter>);
+
+	using ValueType = std::iterator_traits<Iter>::value_type;
+	static_assert(std::is_same_v<std::vector<int>, ValueType>);
+
+	using InnerType = std::ranges::range_value_t<ValueType>;
+	static_assert(std::is_same_v<int, InnerType>);
+
+	using Iter2 = fisk::precompiler::UnpackingIterator<Iter>;
+    static_assert(std::is_same_v<ValueType, Iter2::inner_range_t>);
+    static_assert(std::is_same_v<InnerType, Iter2::value_type>);
+    static_assert(std::is_same_v<InnerType, std::iterator_traits<Iter2>::value_type>);
+
+
+	static_assert(std::input_iterator<Iter2>);
+}

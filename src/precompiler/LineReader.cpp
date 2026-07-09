@@ -3,16 +3,12 @@
 
 namespace fisk::precompiler
 {
-
 	LineReader::LineReader(std::shared_ptr<std::istream> aStream, std::string aSourcePath)
-		: myStream(aStream), mySourcePath(aSourcePath)
+		: myStream(aStream)
 	{
+        myItem.myPath = aSourcePath;
+        myItem.myLine = 0;
 	}
-
-    LineReader::LineReader(std::string aSourcePath)
-		: myStream(std::make_shared<std::ifstream>(aSourcePath)), mySourcePath(aSourcePath)
-    {
-    }
 
     LineReader& LineReader::operator++()
 	{
@@ -24,16 +20,17 @@ namespace fisk::precompiler
 		return *this;
 	}
 
-	SourceLine LineReader::operator*()
+    LineReader LineReader::operator++(int)
 	{
-		if (myState == State::UnPrimed)
-			NextLine();
+        LineReader copy(*this);
+        ++(*this);
+		return copy;
+	}
 
-		return {
-			.myPath = mySourcePath,
-			.myText = myLineBuffer,
-			.myLine = myLineNumber
-		};
+	SourceLine& LineReader::operator*() const
+	{
+        assert(myState == State::Primed && "Incorrect iterator usage, dereference past end or without checking against end");
+		return myItem;
 	}
 
 	bool LineReader::operator==(const std::nullptr_t aOther)
@@ -51,17 +48,28 @@ namespace fisk::precompiler
 
 	void LineReader::NextLine()
 	{
-		myLineBuffer.clear();
+        myItem.myText.clear();
+        myItem.myLine++;
 
-		if (!std::getline(*myStream, myLineBuffer))
-		{
-			if (myLineBuffer.empty())
-				myState = State::EndOfFile;
+		while (myStream)
+        {
+            int next = myStream->get();
+            if (next == EOF)
+            {
+                if (myItem.myText.empty())
+                {
+                    myState = State::EndOfFile;
+                    return;
+                }
+                break;
+			}
+            
+			myItem.myText += (char)next;
 
-			return;
-		}
+            if (next == '\n')
+                break;
+        }
 
-		myLineNumber++;
 		myState = State::Primed;
 	}
 }

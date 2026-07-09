@@ -4,19 +4,19 @@
 
 namespace fisk::precompiler
 {
-    SourceLine::Iterator::Iterator(std::ranges::iterator_t<std::string> aStart, SourceChar aDefaults)
+    SourceLine::Iterator::Iterator(std::string::const_iterator aStart, SourceChar aDefaults)
     {
         myStart = aStart;
         myInner = aStart;
         myDefaults = aDefaults;
     }
 
-    SourceChar SourceLine::Iterator::operator*() const
+    SourceChar& SourceLine::Iterator::operator*() const
     {
-        SourceChar decorated{myDefaults};
-        decorated.myCharacter = *myInner;
-        decorated.myColumn = std::distance(myStart, myInner);
-        return decorated;
+        myCurrent = myDefaults;
+        myCurrent.myCharacter = *myInner;
+        myCurrent.myColumn = std::distance(myStart, myInner);
+        return myCurrent;
     }
 
     SourceLine::Iterator& SourceLine::Iterator::operator++()
@@ -32,11 +32,6 @@ namespace fisk::precompiler
         return copy;
     }
 
-    bool SourceChar::operator==(const char aOther) const
-    {
-        return myCharacter == aOther;
-    }
-
     bool SourceLine::operator==(const SourceLine &aOther) const
     {
         return myPath == aOther.myPath
@@ -44,12 +39,12 @@ namespace fisk::precompiler
             && myLine == aOther.myLine;
     }
 
-    SourceLine::Iterator SourceLine::begin()
+    SourceLine::Iterator SourceLine::begin() const
     {
         return Iterator(std::ranges::begin(myText), { myPath, myLine, 0, '\0'});
     }
 
-    SourceLine::Iterator SourceLine::end()
+    SourceLine::Iterator SourceLine::end() const
     {
         return Iterator(std::ranges::end(myText), { myPath, myLine, 0, '\0'});
     }

@@ -8,9 +8,9 @@ TEST_CASE("precompiler::types::reiterator", "")
 {
     fisk::precompiler::SourceLine lines[] = 
     {
-        {"test.txt", "Hello", 1 },
-        {"test.txt", "there", 2 },
-        {"test.txt", "general", 3 },
+        {"test.txt", "Hello\n", 1 },
+        {"test.txt", "there\n", 2 },
+        {"test.txt", "general\n", 3 },
         {"test.txt", "kenobi", 4 }
     };
 
